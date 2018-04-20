@@ -1,0 +1,370 @@
+#!/bin/bash
+####
+#
+#This code submits a set of CH3 parameter sets (determined by Bayesian MCMC with a different code)
+#Simulations are performed at 5 REFPROP saturation conditions
+#Temperatures are performed sequentially, batches of NREPS parameter sets are submitted at a time
+#Green-Kubo analysis is used
+#
+#
+####
+job_date=$(date "+%Y_%m_%d_%H_%M_%S")
+
+Compound=Ethane
+Model=Mie_13_Bayesian_Viscosity_200_MCMC 
+
+#Specify the path location
+
+scripts_path=~/Scripts
+input_path=~/"$Compound"/Gromacs/Tabulated
+output_path=~/"$Compound"/Gromacs/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+
+cp "$scripts_path"/"$Compound"_BayesianSaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+
+bond_length=0.154 #[nm]
+Nmol=400 #Number of molecules
+
+Tsat=(137. 174. 207. 236. 260.)			
+
+liquid_box=(3.2168 3.2973 3.3864 3.4861 3.5986) 
+
+for j in $(seq 0 4) # Number of temperatures to run (0 4)
+
+do
+
+nRep=0
+
+NREPS=20 #Run 20 replicates in parallel
+NREP_low=0
+NREP_high=$((NREPS-1))
+
+####
+
+for iRep in $(seq 0 9) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+
+do
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path" || exit
+
+### Read in eps, sig, and lam from a file that contains the MCMC samples
+
+eps_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $1}' < eps_sig_lam_MCMC)
+sig_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $2}' < eps_sig_lam_MCMC)
+lam_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $3}' < eps_sig_lam_MCMC)
+
+echo iMCMC = "$iMCMC"
+echo Run Saturated Viscosity for epsilon = "$eps_sim" sigma = "$sig_sim" lambda = "$lam_sim"
+
+####
+
+mkdir MCMC_"$iMCMC"
+cd MCMC_"$iMCMC" || exit
+
+#Create files with force field parameters
+
+python "$scripts_path"/create_tab.py --epsilon "$eps_sim" --sigma "$sig_sim" --lam "$lam_sim"
+
+C6_guess=$(<C6_it)
+Clam_guess=$(<Clam_it)
+
+cp "$input_path"/ethane_temp.top ethane.top 
+cp "$input_path"/ethane.gro ethane.gro 
+sed -i -e s/some_C6/"$C6_guess"/ ethane.top
+sed -i -e s/some_Clam/"$Clam_guess"/ ethane.top
+sed -i -e s/some_bond/"$bond_length"/g ethane.top
+
+### Copy from other script with modifications
+
+echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+
+# Initialize the folders, copy files, and insert variables
+
+cd "$output_path"/MCMC_"$iMCMC" || exit #presumes this dir was made previously
+
+mkdir Saturated
+cd Saturated || exit
+
+mkdir rho"$j"
+cd    rho"$j" || exit
+
+echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+
+mkdir Rep"$nRep"  
+cd    Rep"$nRep" || exit
+
+gmx insert-molecules -ci ../../../ethane.gro -nmol $Nmol -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o ethane_box.gro > insertout 2>> insertout
+
+#Copy the minimization files
+
+cp "$input_path"/em_steep.mdp em_steep.mdp
+cp "$input_path"/em_l-bfgs.mdp em_l-bfgs.mdp
+
+mkdir NVT_eq
+cd NVT_eq || exit
+
+# Copy the equilibration files and edit the temperature
+
+cp "$input_path"/nvt_eq_no_output.mdp nvt_eq.mdp
+sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_eq.mdp
+
+mkdir NVT_prod
+cd NVT_prod || exit
+
+# Copy the production files and edit the temperature
+
+cp "$input_path"/nvt_prod_no_output.mdp nvt_prod.mdp
+sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_prod.mdp
+
+# Create new directory for viscosity run
+
+mkdir NVT_vis
+cd NVT_vis || exit
+
+# Copy the viscosity files and edit the temperature
+
+cp "$input_path"/nvt_vis_no_xv.mdp nvt_vis.mdp
+sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_vis.mdp
+
+done # for loop over iMCMC
+
+###First energy minimization
+
+pinoffset=28
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f em_steep.mdp -c ethane_box.gro -p ../../../ethane.top -o em_steep.tpr > gromppout 2>> gromppout
+#We now use a different approach for assigning nodes
+#gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+1))
+
+done #for iMCMC
+
+echo "Waiting for em_steep.tpr: Energy Minimization Part1"
+
+nit=0
+maxit=60000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1s
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+done
+
+###Second energy minimization
+
+pinoffset=28
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../ethane.top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
+#gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
+gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+1))
+
+done #for iMCMC
+
+echo "Waiting for second energy minimization"
+
+nit=0
+maxit=60000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1s
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+done
+
+###Equilibration period
+
+pinoffset=28
+ntomp_eq=1
+nt_eq=2
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
+then
+echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+rm ../step*.pdb
+fi
+
+gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../ethane.top -o nvt_eq.tpr > gromppout 2>> gromppout
+#gmx mdrun -table ../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
+gmx mdrun -table ../../../../tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm nvt_eq > runout 2>> runout &
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_eq))
+
+done #for iMCMC
+
+echo "Waiting for Saturated equilibration"
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 100s
+echo "Waiting for Saturated equilibration"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | grep -c "GROMACS reminds you")
+done
+
+###Production period
+#Moved production period to its own loop because no longer using multiple threads for equilibration (i.e. sufficient resources on md1 and no speed-up for -nt 4)
+
+pinoffset=28
+ntomp_prod=1
+nt_prod=2
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f nvt_prod.mdp -c ../nvt_eq.gro -p ../../../../../ethane.top -o nvt_prod.tpr > gromppout 2>> gromppout
+#gmx mdrun -table ../../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_prod" -nb cpu -deffnm nvt_prod > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
+gmx mdrun -table ../../../../../tab_it.xvg -nt "$nt_prod" -nb cpu -pme cpu -deffnm nvt_prod > runout 2>> runout &
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_prod))
+
+done #for iMCMC
+
+
+echo "Waiting for Saturated productions"
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 100s
+echo "Waiting for Saturated productions"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/runout | grep -c "GROMACS reminds you")
+done
+
+###Viscosity period
+
+pinoffset=28
+ntomp_vis=1
+nt_vis=2
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f nvt_vis.mdp -c ../nvt_prod.gro -p ../../../../../../ethane.top -o nvt_vis.tpr > gromppout 2>> gromppout
+#gmx mdrun -table ../../../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
+gmx mdrun -table ../../../../../../tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_vis))
+
+done #for iMCMC
+
+
+echo "Waiting for Saturated viscosities"
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 100s
+echo "Waiting for Saturated viscosities"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/runout | grep -c "GROMACS reminds you")
+done
+
+###Data analysis
+
+echo "Waiting for post processing viscosity data"
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+# Don't need trajectories of eq and prod with viscosity
+# Modified .mdp so that trajectories are not produced, i.e. this is no longer needed
+#rm ../nvt_prod.trr
+#rm ../../nvt_eq.trr
+
+### Analyze trajectories for TCAF method
+# No longer using TCAF to obtain viscosities
+#echo 0 | gmx tcaf -f nvt_vis.trr -s nvt_vis.tpr > tcaf_out 2>> tcaf_out &
+
+Lbox="${liquid_box[j]}"
+Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
+
+### Analyze Green-Kubo and Einstein
+
+echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out
+
+#rm nvt_vis.trr
+rm energy.xvg
+rm nvt_vis.edr
+rm enecorr.xvg
+rm -f \#*
+
+echo "Still post processing viscosity data"
+
+done #for iMCMC
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated || exit
+
+#rm -f rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/tcaf_all.xvg
+
+NREP_low=$((NREP_low+NREPS))
+NREP_high=$((NREP_high+NREPS))
+
+echo iRep = "$iRep"
+echo NREP_low = "$NREP_low"
+echo NREP_high = "$NREP_high"
+
+done # for iRep
+
+cd "$output_path" || exit
+
+###GreenKubo_analyze for all MCMC parameter sets
+python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --nReps 1 --irho "$j" --sat
+
+done
+
+exit 0
+
+#######
+
