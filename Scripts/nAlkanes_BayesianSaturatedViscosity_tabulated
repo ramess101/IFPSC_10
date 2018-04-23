@@ -10,23 +10,36 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C3H8
-Model=Mie_16_Bayesian_Viscosity_200_MCMC 
+Compound=C4H10
+Model=Mie_16_Bayesian_Viscosity_200_MCMC
+Conditions_type=Saturation 
 
 #Specify the path location
 
 scripts_path=~/Scripts
+conditions_path=~/"$Conditions_type"_Conditions
 input_path=~/"$Compound"/Gromacs/Tabulated
 output_path=~/"$Compound"/Gromacs/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-cp "$scripts_path"/"$Compound"_BayesianSaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/nAlkanes_BayesianSaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
 
 bondlength_CH3=0.154 #[nm]
-Nmol=$(<"$Compound"_Nmol) #Number of molecules
 
-Tsat=$(<"$Compound"_Tsat)			
+### Read the temperature, box size, and number of molecules
 
-liquid_box=$(<"$Compound"_liquid_box) 
+Nmol=$(<"$conditions_path"/"$Compound"_Nmol) #Number of molecules
+
+while read line
+do 
+Tsat+=("$line")
+done < "$conditions_path"/"$Compound"_Tsat	
+
+while read line
+do 
+liquid_box+=("$line")
+done < "$conditions_path"/"$Compound"_liquid_box	
+
+### Loop through temperatures and densities		
 
 for j in $(seq 0 4) # Number of temperatures to run (0 4)
 
@@ -59,7 +72,7 @@ sigCH2_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $5}' < eps_sig_lam_MCMC)
 #lam_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $6}' < eps_sig_lam_MCMC) #Code assumes CH3 and CH2 have the same lambda value
 
 echo iMCMC = "$iMCMC"
-echo Run Saturated Viscosity for epsilon = "$eps_sim" sigma = "$sig_sim" lambda = "$lam_sim"
+echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim"
 
 ####
 
@@ -105,6 +118,7 @@ sed -i -e s/some_Clam_CH2/"$Clam_CH2_sim"/ "$Compound".top
 sed -i -e s/some_C6_combCH3CH2/"$C6_CH3CH2_sim"/ "$Compound".top
 sed -i -e s/some_Clam_combCH3CH2/"$Clam_CH3CH2_sim"/ "$Compound".top
 sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
+sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
 
 ### Copy from other script with modifications
 
@@ -125,7 +139,7 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/Sat
 mkdir Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol $Nmol -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
 #Copy the minimization files
 

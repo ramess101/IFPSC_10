@@ -55,12 +55,12 @@ eps_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $1}' < eps_sig_lam_MCMC)
 sig_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $2}' < eps_sig_lam_MCMC)
 lam_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $3}' < eps_sig_lam_MCMC)
 
-echo iMCMC = "$iMCMC"
+echo iMCMC = "$iMCMC" Tsat = "${Tsat[j]}" liquid_box = "${liquid_box[j]}"
 echo Run Saturated Viscosity for epsilon = "$eps_sim" sigma = "$sig_sim" lambda = "$lam_sim"
 
 ####
 
-mkdir MCMC_"$iMCMC"
+mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || exit
 
 #Create files with force field parameters
@@ -84,15 +84,15 @@ echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/MCMC_"$iMCMC"/SaturatedSet
 
 cd "$output_path"/MCMC_"$iMCMC" || exit #presumes this dir was made previously
 
-mkdir Saturated
+mkdir -p Saturated
 cd Saturated || exit
 
-mkdir rho"$j"
+mkdir -p rho"$j"
 cd    rho"$j" || exit
 
 echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
 
-mkdir Rep"$nRep"  
+mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
 gmx insert-molecules -ci ../../../ethane.gro -nmol $Nmol -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o ethane_box.gro > insertout 2>> insertout
@@ -102,7 +102,7 @@ gmx insert-molecules -ci ../../../ethane.gro -nmol $Nmol -box "${liquid_box[j]}"
 cp "$input_path"/em_steep.mdp em_steep.mdp
 cp "$input_path"/em_l-bfgs.mdp em_l-bfgs.mdp
 
-mkdir NVT_eq
+mkdir -p NVT_eq
 cd NVT_eq || exit
 
 # Copy the equilibration files and edit the temperature
@@ -110,7 +110,7 @@ cd NVT_eq || exit
 cp "$input_path"/nvt_eq_no_output.mdp nvt_eq.mdp
 sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_eq.mdp
 
-mkdir NVT_prod
+mkdir -p NVT_prod
 cd NVT_prod || exit
 
 # Copy the production files and edit the temperature
@@ -120,7 +120,7 @@ sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_prod.mdp
 
 # Create new directory for viscosity run
 
-mkdir NVT_vis
+mkdir -p NVT_vis
 cd NVT_vis || exit
 
 # Copy the viscosity files and edit the temperature

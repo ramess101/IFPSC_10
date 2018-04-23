@@ -34,8 +34,8 @@ CH3_C CH2_C 1 0.0 0.0; cross-interactions for CH3_C and CH2_C
 [ bondtypes ]
 ; i    j     func    b0        k0
 ; CHX-CHY
-  CH3  CH3   1       0.1540    0.0
-  CH3  CH2   1       0.1540    0.0
+  CH3  CH3   1       some_bondlength_CH3    0.0
+  CH3  CH2   1       some_bondlength_CH3    0.0
 
 [ angletypes ]
 ; i    j    k     func    th0       cth
@@ -71,8 +71,8 @@ pro      3
 
 [ bonds ]
 ; ai  aj  
-   1   2   1 0.1540    0.0;   CAA  CAB     
-   2   3   1 0.1540    0.0;   CAB  CAC     
+   1   2   1 some_bondlength_CH3    0.0;   CAA  CAB     
+   2   3   1 some_bondlength_CH3    0.0;   CAB  CAC     
 
 [ angles ]
 ; ai  aj  ak
@@ -83,4 +83,4 @@ pro      3
 Propane box
 
 [ molecules ]
-pro     400 
+pro     some_Nmol 
