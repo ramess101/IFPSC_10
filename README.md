@@ -16,4 +16,8 @@ Currently the scripts in Ethane are for simulating 200 different epsilon/sigma p
 The Green-Kubo analysis uses bootstrapping to assign uncertainties. These uncertainties account for both the fitting of the Green-Kubo integral as well as the uncertainty in the force field parameters.
 
 
-nAlkanes_Bayesian... is not working yet! Need to fix a bash bug.
+nAlkanes_BayesianSaturatedViscosity is the script that should be used to simulate all n-alkanes larger than ethane. 
+
+eps_sig_lam_MCMC are the epsilon, sigma, lambda sets for each interaction site (CH3, CH2, CH, C) as determined with a Bayesian Markov Chain Monte Carlo approach.
+
+
