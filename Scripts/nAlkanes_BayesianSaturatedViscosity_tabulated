@@ -10,8 +10,8 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C3H8
-Model=Mie_16_Bayesian_Viscosity_200_MCMC
+Compound=C4H10
+Model=Mie_14_Bayesian_Viscosity_200_MCMC
 Conditions_type=Saturation 
 
 #Specify the path location
