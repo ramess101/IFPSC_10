@@ -4,7 +4,7 @@
 #This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
 #Simulations are performed at 5 REFPROP saturation conditions
 #Temperatures are performed sequentially, batches of NREPS parameter sets are submitted at a time
-#Green-Kubo analysis is used
+#Green-Kubo analysis is used after each temperature loop is completed
 #
 #
 ####
@@ -18,6 +18,7 @@ Conditions_type=Saturation
 
 scripts_path=~/Scripts
 conditions_path=~/"$Conditions_type"_Conditions
+exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Tabulated
 output_path=~/"$Compound"/Gromacs/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
@@ -38,6 +39,11 @@ while read line
 do 
 liquid_box+=("$line")
 done < "$conditions_path"/"$Compound"_liquid_box
+
+### Copy experimental data files to output directory
+
+cp "$exp_data_path"/"$Compound"_TDE_eta_sat.txt "$output_path"/TDE_eta_sat.txt
+cp "$exp_data_path"/"$Compound"_REFPROP_eta_sat.txt "$output_path"/REFPROP_eta_sat.txt
 
 ### Create file and header for state point conditions
 
