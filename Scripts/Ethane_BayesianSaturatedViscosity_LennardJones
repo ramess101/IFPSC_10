@@ -384,7 +384,7 @@ done # for iRep
 cd "$output_path" || exit
 
 ###GreenKubo_analyze for all MCMC parameter sets
-python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --nReps 1 --irho "$j" --sat
+python "$scripts_path"/GreenKubo_analyze_ethane.py --ilow 0 --ihigh $((NREP_low-1)) --nReps 1 --irho "$j" --sat
 
 done
 

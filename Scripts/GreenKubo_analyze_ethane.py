@@ -14,28 +14,36 @@ from scipy.optimize import minimize
 
 try:
     
-    TDE_data = np.loadtxt('TDE_eta_sat.txt',skiprows=1)
+    TDE_data = np.loadtxt('TDE_viscosity_Ethane.txt',skiprows=1)
     T_data = TDE_data[:,0]
     eta_data = TDE_data[:,1]
     
-    RP_sat = np.loadtxt('REFPROP_eta_sat.txt',skiprows=1)
+    RP_sat = np.loadtxt('RP_eta_sat_Ethane.txt',skiprows=1)
     Tsat_RP = RP_sat[:,0]
     eta_sat_RP = RP_sat[:,1]
     
-#    RP_IT = np.loadtxt('REFPROP_eta_IT.txt',skiprows=1)
-#    rho_IT_RP = RP_IT[:,0]
-#    eta_IT_RP = RP_IT[:,1]
+    RP_IT = np.loadtxt('RP_eta_IT_Ethane.txt',skiprows=1)
+    rho_IT_RP = RP_IT[:,0]
+    eta_IT_RP = RP_IT[:,1]
     
-#    RP_IT_sim = np.loadtxt('REFPROP_eta_IT_sim.txt',skiprows=1)
-#    rho_IT_sim = RP_IT_sim[:,0]
-#    eta_IT_RP_sim = RP_IT_sim[:,1]
+    RP_IT_sim = np.loadtxt('RP_eta_IT_sim_Ethane.txt',skiprows=1)
+    rho_IT_sim = RP_IT_sim[:,0]
+    eta_IT_RP_sim = RP_IT_sim[:,1]
+    
+    TraPPE_data = np.loadtxt('TraPPE_eta_sat.txt',skiprows=1)
+    Tsat_TraPPE = TraPPE_data[:,0]
+    eta_sat_TraPPE = TraPPE_data[:,1]
+    u_low_sat_TraPPE = TraPPE_data[:,2]
+    u_high_sat_TraPPE = TraPPE_data[:,3]
+    
+    TraPPE_data = np.loadtxt('TraPPE_eta_IT.txt',skiprows=1)
+    eta_IT_TraPPE = TraPPE_data[:,0]
+    u_low_IT_TraPPE = TraPPE_data[:,1]
+    u_high_IT_TraPPE = TraPPE_data[:,2]
     
 except:
     
     pass
-
-sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
-Tsat = sim_sat[:,2]
 
 tcut_default = 10
 
@@ -94,6 +102,7 @@ class GreenKubo_MCMC():
         eta_MCMC, eta_low_MCMC, eta_high_MCMC = self.eta_states, self.eta_low, self.eta_high
         
         Tsat_mask = np.array([False, False, False, False, False, False, False, False, False, True, False, True, False, True, False, True, False, True, False],dtype=bool)
+        Tsat = np.array([137.,174.,207.,236.,260.])
         
         eta_sat = eta_MCMC[Tsat_mask]
         eta_low_sat = eta_low_MCMC[Tsat_mask]
@@ -106,6 +115,7 @@ class GreenKubo_MCMC():
                    
         plt.errorbar(Tsat,eta_sat,yerr=[err_low,err_high],fmt='bs',capsize=2,capthick=2,label='MCMC')
 #        plt.plot(Tsat,eta_sat,'bs',label='MCMC')
+        plt.errorbar(Tsat_TraPPE,eta_sat_TraPPE,yerr=[u_low_sat_TraPPE,u_high_sat_TraPPE],fmt='r^',capsize=2,capthick=2,label='TraPPE-UA')
         plt.plot(T_data,eta_data,'ko',mfc='None',label='Exp.')
         plt.plot(Tsat_RP,eta_sat_RP,'k--',label='REFPROP')
         plt.ylabel('Viscosity (cP)')
@@ -123,14 +133,19 @@ class GreenKubo_MCMC():
             eta_sat_RP_sim[iSat] = eta_sat_RP_i
                              
         dev_MCMC = (eta_sat-eta_sat_RP_sim)/eta_sat_RP_sim*100.
+        dev_TraPPE = (eta_sat_TraPPE-eta_sat_RP_sim)/eta_sat_RP_sim*100.
                      
         pu_low = err_low/eta_sat_RP_sim*100.
-        pu_high = err_high/eta_sat_RP_sim*100.           
+        pu_high = err_high/eta_sat_RP_sim*100.   
+
+        pu_low_sat_TraPPE = u_low_sat_TraPPE/eta_sat_RP_sim*100.
+        pu_high_sat_TraPPE = u_high_sat_TraPPE/eta_sat_RP_sim*100.          
         
         fig = plt.figure(figsize=(6,6))
                    
         plt.errorbar(Tsat,dev_MCMC,yerr=[pu_low,pu_high],fmt='bs',capsize=2,capthick=2,label='MCMC')
 #        plt.plot(Tsat,dev_MCMC,'bs',label='MCMC')
+        plt.errorbar(Tsat_TraPPE,dev_TraPPE,yerr=[pu_low_sat_TraPPE,pu_high_sat_TraPPE],fmt='r^',capsize=2,capthick=2,label='TraPPE-UA')
         #plt.plot(T_data,eta_data,'ko',mfc='None',label='Exp.')
         #plt.plot(Tsat_RP,eta_sat_RP,'k--',label='REFPROP')
         plt.ylabel('Percent Deviation in Viscosity')
@@ -157,6 +172,7 @@ class GreenKubo_MCMC():
                    
         plt.errorbar(rho_IT_sim,eta_IT,yerr=[err_low,err_high],fmt='bs',capsize=2,capthick=2,label='MCMC')
 #        plt.plot(rho_IT_sim,eta_IT,'bs',label='MCMC')
+        plt.errorbar(rho_IT_sim,eta_IT_TraPPE,yerr=[u_low_IT_TraPPE,u_high_IT_TraPPE],fmt='r^',capsize=2,capthick=2,label='TraPPE-UA')
         plt.plot(rho_IT_RP,eta_IT_RP,'k--',label='REFPROP')
         plt.ylabel('Viscosity (cP)')
         plt.xlabel('Temperature (K)')
@@ -166,14 +182,19 @@ class GreenKubo_MCMC():
         plt.close()
                                      
         dev_MCMC = (eta_IT-eta_IT_RP_sim)/eta_IT_RP_sim*100.
+        dev_TraPPE = (eta_IT_TraPPE-eta_IT_RP_sim)/eta_IT_RP_sim*100.
                      
         pu_low = err_low/eta_IT_RP_sim*100.
-        pu_high = err_high/eta_IT_RP_sim*100.         
+        pu_high = err_high/eta_IT_RP_sim*100.   
+
+        pu_low_IT_TraPPE = u_low_IT_TraPPE/eta_IT_RP_sim*100.
+        pu_high_IT_TraPPE = u_high_IT_TraPPE/eta_IT_RP_sim*100.          
         
         fig = plt.figure(figsize=(6,6))
                    
         plt.errorbar(rho_IT_sim,dev_MCMC,yerr=[pu_low,pu_high],fmt='bs',capsize=2,capthick=2,label='MCMC')
 #        plt.plot(rho_IT_sim,dev_MCMC,'bs',label='MCMC')
+        plt.errorbar(rho_IT_sim,dev_TraPPE,yerr=[pu_low_IT_TraPPE,pu_high_IT_TraPPE],fmt='r^',capsize=2,capthick=2,label='TraPPE-UA')
         plt.ylabel('Percent Deviation in Viscosity')
         plt.xlabel('Temperature (K)')
         plt.legend()
@@ -1243,7 +1264,40 @@ class GreenKubo():
         return t_GK, visc_GK
     
 def main():
-       
+    
+#    fpath = 'TraPPE_IT_rho8/'
+#    TraPPE_IT_rho8 = GreenKubo(fpath)
+#    
+#    plt.plot(TraPPE_IT_rho8.t_GK,TraPPE_IT_rho8.visc_GK)
+#    plt.show()
+#
+#fpath = ['Potoff_IT_rho8/','TraPPE_IT_rho8/']
+#multi_GK = GreenKubo_states(fpath_all=fpath)
+#
+#plt.plot(multi_GK.GK_all[0].t_GK,multi_GK.GK_all[0].visc_GK)
+#plt.plot(multi_GK.GK_all[1].t_GK,multi_GK.GK_all[1].visc_GK)
+#plt.show()
+
+#    GK_MCMC = GreenKubo_MCMC(0,1)
+##    GK_MCMC.plot_eta_IT()
+#    GK_MCMC.plot_bootstraps()
+#    print(GK_MCMC.eta_states)
+#    for iState in range(GK_MCMC.nStates):
+#        
+#        plt.plot(GK_MCMC.t_GK,GK_MCMC.GK_MCMC_visc_avg[iState,:])
+#        
+#    plt.show()
+
+#    GK_Reps = GreenKubo_SaturatedReplicates(0,3,'MCMC_50_TraPPE_replicates/')
+#    GK_Reps.plot_GK_Reps()
+#    GK_Reps.plot_bootstraps()
+#    GK_Reps.plot_scan_tcut_b()
+#    print(GK_Reps.fpath_all)
+#    plt.plot(GK_Reps.GK_Reps[0].t_GK,GK_Reps.GK_Reps[0].visc_GK)
+#    plt.plot(GK_Reps.GK_Reps[1].t_GK,GK_Reps.GK_Reps[1].visc_GK)
+#    plt.plot(GK_Reps.GK_Reps[2].t_GK,GK_Reps.GK_Reps[2].visc_GK)
+#    plt.show()
+#    
     parser = argparse.ArgumentParser()
     parser.add_argument("-il","--ilow",type=int,help="Specify the lowest iMCMC value")
     parser.add_argument("-ih","--ihigh",type=int,help="Specify the high iMCMC value")

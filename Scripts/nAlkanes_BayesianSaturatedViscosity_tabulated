@@ -10,7 +10,7 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C4H10
+Compound=C3H8
 Model=Mie_16_Bayesian_Viscosity_200_MCMC
 Conditions_type=Saturation 
 
@@ -37,13 +37,21 @@ done < "$conditions_path"/"$Compound"_Tsat
 while read line
 do 
 liquid_box+=("$line")
-done < "$conditions_path"/"$Compound"_liquid_box	
+done < "$conditions_path"/"$Compound"_liquid_box
+
+### Create file and header for state point conditions
+
+echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt	
 
 ### Loop through temperatures and densities		
 
 for j in $(seq 0 4) # Number of temperatures to run (0 4)
 
 do
+
+### Record the state point conditions
+
+echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings.txt
 
 nRep=0
 
@@ -120,9 +128,12 @@ sed -i -e s/some_Clam_combCH3CH2/"$Clam_CH3CH2_sim"/ "$Compound".top
 sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
 sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
 
-### Copy from other script with modifications
-
-echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+### Record state points, include header if creating file
+### Moved this outside of loop
+#if [ -e "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt ]
+#then
+#echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+#fi
 
 # Initialize the folders, copy files, and insert variables
 
@@ -134,7 +145,7 @@ cd Saturated || exit
 mkdir rho"$j"
 cd    rho"$j" || exit
 
-echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+#echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
 
 mkdir Rep"$nRep"  
 cd    Rep"$nRep" || exit
@@ -188,7 +199,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fre
 gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
 #We now use a different approach for assigning nodes
 #gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
-gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
 taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
@@ -220,7 +231,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fre
 
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
-gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
 taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
