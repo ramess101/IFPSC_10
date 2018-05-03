@@ -1,29 +1,29 @@
 ; Run control
-integrator               = sd       ; Stochastic dynamics
+integrator               = md-vv       ; Velocity Verlet
 tinit                    = 0
 dt                       = 0.002
-nsteps                   = 1000000   ; 2 ns
+nsteps                   = 500000   ; 1 ns
 nstcomm                  = 100
 ; Output control
-nstxout                  = 2000
-nstvout                  = 2000
+nstxout                  = 10
+nstvout                  = 10
 nstfout                  = 0
-nstlog                   = 500000
-nstenergy                = 2000
+nstlog                   = 50000
+nstenergy                = 3
 nstxout-compressed       = 0
 ; Neighborsearching and short-range nonbonded interactions
-cutoff-scheme            = group
+cutoff-scheme            = Verlet
 nstlist                  = 20
 ns_type                  = grid
 pbc                      = xyz
-rlist                    = 1.4
+rlist                    = some_rvdw
 ; Electrostatics
 coulombtype              = cutoff
-rcoulomb                 = 1.4
+rcoulomb                 = some_rvdw
 ; van der Waals
-vdwtype                  = user
+vdwtype                  = cutoff
 vdw-modifier             = none
-rvdw                     = 1.4
+rvdw                     = some_rvdw
 ; Apply long range dispersion corrections for Energy and Pressure
 DispCorr                  = EnerPres
 ; Spacing for the PME/PPPM FFT grid
@@ -45,5 +45,5 @@ ref_p                    = 1.0
 ; options for bonds
 constraints              = all-bonds
 constraint_algorithm     = lincs
-; No velocities during EM 
+lincs-order              = 8
 gen_vel                  = no
