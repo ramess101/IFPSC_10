@@ -1,0 +1,646 @@
+#!/bin/bash
+####
+#
+#This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
+#Simulations are performed at 5 REFPROP saturation conditions
+#Temperatures are performed sequentially, batches of NREPS parameter sets are submitted at a time
+#Green-Kubo analysis is used after each temperature loop is completed
+#
+#
+####
+job_date=$(date "+%Y_%m_%d_%H_%M_%S")
+
+Compound=NEOC5H12
+Model=Potoff
+Conditions_type=Saturation 
+
+#Specify the path location
+
+scripts_path=~/Scripts
+conditions_path=~/"$Conditions_type"_Conditions
+exp_data_path=~/TDE_REFPROP_values
+input_path=~/"$Compound"/Gromacs/Tabulated
+mdp_path=~/Tabulated
+output_path=~/"$Compound"/Gromacs/Viscosity/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+
+cp "$scripts_path"/branchedAlkanes_SaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+
+### Read the temperature, box size, and number of molecules
+
+Nmol=$(<"$conditions_path"/"$Compound"_Nmol) #Number of molecules
+
+while read line
+do 
+Tsat+=("$line")
+done < "$conditions_path"/"$Compound"_Tsat	
+
+while read line
+do 
+liquid_box+=("$line")
+done < "$conditions_path"/"$Compound"_liquid_box
+
+###Equilibration time is different for certain compounds
+# 0.002 ps time step
+
+if [ "$Compound" = 'C3H8' ]
+then
+
+nsteps_eq=50000 # 0.1 ns total
+
+elif [ "$Compound" = 'C4H10' ]
+then
+
+nsteps_eq=100000 # 0.2 ns total
+
+else
+
+nsteps_eq=500000 # 1 ns total
+
+fi
+
+###Cut-off distance is different for some force fields
+if [ "$Model" = 'Potoff' ]
+then
+
+rvdw=1.0 # [nm]
+
+else
+
+rvdw=1.4 # [nm]
+
+fi
+
+### Assign force field parameters
+if [ "$Model" = 'TraPPE' ]
+then
+
+#TraPPE
+
+bondlength_CH3=0.1540
+
+epsCH3_sim=98. # (K)
+sigCH3_sim=0.375 # (nm)
+lamCH3_sim=12.0
+
+epsCH2_sim=46. # (K)
+sigCH2_sim=0.395 # (nm)
+lamCH2_sim=12.0
+
+epsCH_sim=10. # (K)
+sigCH_sim=0.468 # (nm)
+lamCH_sim=12.0
+
+epsC_sim=0.5 # (K)
+sigC_sim=0.640 # (nm)
+lamC_sim=12.0
+
+lam_sim=12.0
+
+elif [ "$Model" = 'TraPPEAUA' ]
+then
+
+#TraPPE_AUA
+
+bondlength_CH3=0.192
+
+epsCH3_sim=134.5 # (K)
+sigCH3_sim=0.352 # (nm)
+lamCH3_sim=12.0
+
+#Borrow the rest from TraPPE-UA
+
+epsCH2_sim=46. # (K)
+sigCH2_sim=0.395 # (nm)
+lamCH2_sim=12.0
+
+epsCH_sim=10. # (K)
+sigCH_sim=0.468 # (nm)
+lamCH_sim=12.0
+
+epsC_sim=0.5 # (K)
+sigC_sim=0.640 # (nm)
+lamC_sim=12.0
+
+lam_sim=12.0
+
+elif [ "$Model" = 'Potoff' ]
+then
+
+#Potoff
+
+bondlength_CH3=0.1540
+
+epsCH3_sim=121.25 # (K)
+sigCH3_sim=0.3783 # (nm)
+lamCH3_sim=16.0
+
+epsCH2_sim=61. # (K)
+sigCH2_sim=0.399 # (nm)
+lamCH2_sim=16.0
+
+# Transferable sites
+#epsCH_sim=15.00 # (K)
+#sigCH_sim=0.460 # (nm)
+#lamCH_sim=16.0
+
+#epsC_sim=0.5 # (K)
+#sigC_sim=0.610 # (nm)
+#lamC_sim=16.0
+
+#S/L
+#Short (4 or fewer C backbone)
+epsCH_sim=15.00 # (K)
+sigCH_sim=0.470 # (nm)
+lamCH_sim=16.0
+
+epsC_sim=1.45 # (K)
+sigC_sim=0.610 # (nm)
+lamC_sim=16.0
+
+lam_sim=16.0
+
+elif [ "$Model" = 'TAMie' ]
+then
+
+#TAMie
+
+bondlength_CH3=0.174
+
+epsCH3_sim=136.318 # (K)
+sigCH3_sim=0.36034 # (nm)
+lamCH3_sim=14.0
+
+epsCH2_sim=52.9133 # (K)
+sigCH2_sim=0.404 # (nm)
+lamCH2_sim=14.0
+
+epsCH_sim=14.5392 # (K)
+sigCH_sim=0.43656 # (nm)
+lamCH_sim=14.0
+
+epsC_sim=0.0 # (K)
+sigC_sim=0.0 # (nm)
+lamC_sim=14.0
+
+lam_sim=14.0
+
+elif [ "$Model" = 'AUA4' ]
+then
+
+#AUA4
+
+bondlength_CH3=0.1751
+
+epsCH3_sim=120.15 # (K)
+sigCH3_sim=0.3607 # (nm)
+lamCH3_sim=12.0
+
+epsCH2_sim=86.29 # (K)
+sigCH2_sim=0.3431 # (nm)
+lamCH2_sim=12.0
+
+epsCH_sim=50.98 # (K)
+sigCH_sim=0.3363 # (nm)
+lamCH_sim=12.0
+
+epsC_sim=15.04 # (K)
+sigC_sim=0.244 # (nm)
+lamC_sim=12.0
+
+lam_sim=12.0
+
+#Standard CC bondlength for AUA4 = 0.1535 nm
+#delta_CH3=0.0216 nm
+#delta_CH2=0.0384 nm
+#delta_CH=0.0646 nm
+
+fi
+
+### Copy experimental data files to output directory
+
+cp "$exp_data_path"/"$Compound"_TDE_eta_sat.txt "$output_path"/TDE_eta_sat.txt
+cp "$exp_data_path"/"$Compound"_REFPROP_eta_sat.txt "$output_path"/REFPROP_eta_sat.txt
+
+### Create file and header for state point conditions
+
+echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt	
+
+### Loop through temperatures and densities		
+
+for j in $(seq 0 0) # Number of temperatures to run (0 4)
+
+do
+
+### Record the state point conditions
+
+echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings.txt
+
+nRep=0
+
+NREPS=1 #Run 20 replicates in parallel
+NREP_low=0
+NREP_high=$((NREPS-1))
+
+####
+
+for iRep in $(seq 0 0) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+
+do
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path" || exit
+
+echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim" epsCH = "$epsCH_sim" sigCH = "$sigCH_sim" lamCH = "$lam_sim" epsC = "$epsC_sim" sigC = "$sigC_sim" lamC = "$lam_sim"
+
+####
+
+mkdir MCMC_"$iMCMC"
+cd MCMC_"$iMCMC" || exit
+
+#Create files with force field parameters
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3_sim" --sigma "$sigCH3_sim"
+
+C6_CH3_sim=$(<C6_it)
+Clam_CH3_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2_sim" --sigma "$sigCH2_sim"
+
+C6_CH2_sim=$(<C6_it)
+Clam_CH2_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH_sim" --sigma "$sigCH_sim"
+
+C6_CH_sim=$(<C6_it)
+Clam_CH_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsC_sim" --sigma "$sigC_sim"
+
+C6_C_sim=$(<C6_it)
+Clam_C_sim=$(<Clam_it)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH2_sim"
+
+epsCH3CH2_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH_sim"
+
+epsCH3CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsC_sim"
+
+epsCH3C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsCH_sim"
+
+epsCH2CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsC_sim"
+
+epsCH2C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH_sim" "$epsC_sim"
+
+epsCHC_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH2_sim"
+
+sigCH3CH2_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH_sim"
+
+sigCH3CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigC_sim"
+
+sigCH3C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigCH_sim"
+
+sigCH2CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigC_sim"
+
+sigCH2C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH_sim" "$sigC_sim"
+
+sigCHC_sim=$(<comb_rule)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH2_sim" --sigma "$sigCH3CH2_sim"
+
+C6_CH3CH2_sim=$(<C6_it)
+Clam_CH3CH2_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH_sim" --sigma "$sigCH3CH_sim"
+
+C6_CH3CH_sim=$(<C6_it)
+Clam_CH3CH_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3C_sim" --sigma "$sigCH3C_sim"
+
+C6_CH3C_sim=$(<C6_it)
+Clam_CH3C_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2CH_sim" --sigma "$sigCH2CH_sim"
+
+C6_CH2CH_sim=$(<C6_it)
+Clam_CH2CH_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2C_sim" --sigma "$sigCH2C_sim"
+
+C6_CH2C_sim=$(<C6_it)
+Clam_CH2C_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCHC_sim" --sigma "$sigCHC_sim"
+
+C6_CHC_sim=$(<C6_it)
+Clam_CHC_sim=$(<Clam_it)
+
+echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH_sim" "$sigCH_sim" "$lam_sim" "$epsC_sim" "$sigC_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" "$epsCH3CH_sim" "$sigCH3CH_sim" "$lam_sim" "$epsCH3C_sim" "$sigCH3C_sim" "$lam_sim" "$epsCH2CH_sim" "$sigCH2CH_sim" "$lam_sim" "$epsCH2C_sim" "$sigCH2C_sim" "$lam_sim" "$epsCHC_sim" "$sigCHC_sim" "$lam_sim" > eps_sig_lam_ref
+echo "$bondlength_CH3" > bondlength_CH3
+
+cp "$input_path"/"$Compound"_temp.top "$Compound".top 
+cp "$input_path"/"$Compound".gro "$Compound".gro 
+sed -i -e s/some_C6_CH3/"$C6_CH3_sim"/ "$Compound".top
+sed -i -e s/some_Clam_CH3/"$Clam_CH3_sim"/ "$Compound".top
+sed -i -e s/some_C6_CH2/"$C6_CH2_sim"/ "$Compound".top
+sed -i -e s/some_Clam_CH2/"$Clam_CH2_sim"/ "$Compound".top
+sed -i -e s/some_C6_CH/"$C6_CH_sim"/ "$Compound".top
+sed -i -e s/some_Clam_CH/"$Clam_CH_sim"/ "$Compound".top
+sed -i -e s/some_C6_C/"$C6_C_sim"/ "$Compound".top
+sed -i -e s/some_Clam_C/"$Clam_C_sim"/ "$Compound".top
+
+sed -i -e s/some_C6_combCH3CH2/"$C6_CH3CH2_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH3CH2/"$Clam_CH3CH2_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH3CH/"$C6_CH3CH_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH3CH/"$Clam_CH3CH_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH3C/"$C6_CH3C_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH3C/"$Clam_CH3C_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH2CH/"$C6_CH2CH_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH2CH/"$Clam_CH2CH_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH2C/"$C6_CH2C_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH2C/"$Clam_CH2C_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCHC/"$C6_CHC_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCHC/"$Clam_CHC_sim"/ "$Compound".top
+
+sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
+
+### Initialize the folders, copy files, and insert variables
+
+cd "$output_path"/MCMC_"$iMCMC" || exit #presumes this dir was made previously
+
+mkdir Saturated
+cd Saturated || exit
+
+mkdir rho"$j"
+cd    rho"$j" || exit
+
+#echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+
+mkdir Rep"$nRep"  
+cd    Rep"$nRep" || exit
+
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
+
+###Copy the minimization files
+
+cp "$mdp_path"/em_steep.mdp em_steep.mdp
+cp "$mdp_path"/em_l-bfgs.mdp em_l-bfgs.mdp
+
+sed -i -e s/some_rvdw/"$rvdw"/ em_steep.mdp
+sed -i -e s/some_rvdw/"$rvdw"/ em_l-bfgs.mdp
+
+mkdir NVT_eq
+cd NVT_eq || exit
+
+### Copy the equilibration files and edit the temperature
+
+cp "$mdp_path"/nvt_eq_no_output.mdp nvt_eq.mdp
+sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_eq.mdp
+sed -i -e s/some_nsteps/"$nsteps_eq"/ nvt_eq.mdp
+sed -i -e s/some_rvdw/"$rvdw"/ nvt_eq.mdp
+
+### Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
+
+mkdir NVT_prod
+cd NVT_prod || exit
+
+### Create new directory for viscosity run
+
+mkdir NVT_vis
+cd NVT_vis || exit
+
+### Copy the viscosity files and edit the temperature
+
+cp "$mdp_path"/nvt_vis_no_xv.mdp nvt_vis.mdp
+sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_vis.mdp
+sed -i -e s/some_rvdw/"$rvdw"/ nvt_vis.mdp
+
+done # for loop over iMCMC
+
+###First energy minimization
+
+pinoffset=28
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
+#We now use a different approach for assigning nodes
+#gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
+taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+1))
+
+done #for iMCMC
+
+echo "Waiting for em_steep.tpr: Energy Minimization Part1"
+
+nit=0
+maxit=60000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1s
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+done
+
+###Second energy minimization
+
+pinoffset=28
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
+#gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
+gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+1))
+
+done #for iMCMC
+
+echo "Waiting for second energy minimization"
+
+nit=0
+maxit=60000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1s
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+done
+
+###Equilibration period
+
+pinoffset=28
+ntomp_eq=1
+nt_eq=2
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
+then
+echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+rm ../step*.pdb
+fi
+
+gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
+#gmx mdrun -table ../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
+gmx mdrun -table ../../../../tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm nvt_eq > runout 2>> runout &
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_eq))
+
+done #for iMCMC
+
+echo "Waiting for Saturated equilibration"
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 100s
+echo "Waiting for Saturated equilibration"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | grep -c "GROMACS reminds you")
+done
+
+###Removed production period
+
+###Viscosity period
+
+pinoffset=28
+ntomp_vis=1
+nt_vis=2
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
+#gmx mdrun -table ../../../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
+gmx mdrun -table ../../../../../../tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_vis))
+
+done #for iMCMC
+
+
+echo "Waiting for Saturated viscosities"
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 100s
+echo "Waiting for Saturated viscosities"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/runout | grep -c "GROMACS reminds you")
+done
+
+###Data analysis
+
+echo "Waiting for post processing viscosity data"
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+# Don't need trajectories of eq and prod with viscosity
+# Modified .mdp so that trajectories are not produced, i.e. this is no longer needed
+#rm ../nvt_prod.trr
+#rm ../../nvt_eq.trr
+
+### Analyze trajectories for TCAF method
+# No longer using TCAF to obtain viscosities
+#echo 0 | gmx tcaf -f nvt_vis.trr -s nvt_vis.tpr > tcaf_out 2>> tcaf_out &
+
+Lbox="${liquid_box[j]}"
+Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
+
+### Analyze Green-Kubo and Einstein
+
+echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out
+
+#rm nvt_vis.trr
+rm energy.xvg
+rm nvt_vis.edr
+rm enecorr.xvg
+rm -f \#*
+
+echo "Still post processing viscosity data"
+
+done #for iMCMC
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated || exit
+
+#rm -f rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/tcaf_all.xvg
+
+NREP_low=$((NREP_low+NREPS))
+NREP_high=$((NREP_high+NREPS))
+
+echo iRep = "$iRep"
+echo NREP_low = "$NREP_low"
+echo NREP_high = "$NREP_high"
+
+done # for iRep
+
+cd "$output_path" || exit
+
+###GreenKubo_analyze for all MCMC parameter sets
+python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --nReps 1 --irho "$j" --sat
+
+done
+
+exit 0
+
+#######
+
