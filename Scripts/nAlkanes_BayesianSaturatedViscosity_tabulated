@@ -11,7 +11,7 @@
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
-Model=Mie_14_Bayesian_Viscosity_200_MCMC
+Model=Potoff
 Conditions_type=Saturation 
 
 #Specify the path location
@@ -99,7 +99,7 @@ NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 9) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 1) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
