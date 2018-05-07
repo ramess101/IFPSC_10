@@ -425,6 +425,10 @@ python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --n
 
 done
 
+cd "$output_path" || exit
+###Create plots to compare with experimental data and correlations
+python "$scripts_path"/compare_TDE_REFPROP.py
+
 exit 0
 
 #######
