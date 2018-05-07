@@ -19,7 +19,7 @@ Conditions_type=Saturation
 scripts_path=~/Scripts
 conditions_path=~/"$Conditions_type"_Conditions
 exp_data_path=~/TDE_REFPROP_values
-input_path=~/"$Compound"/Gromacs/Tabulated
+input_path=~/"$Compound"/Gromacs/Gromacs_input
 mdp_path=~/Tabulated
 output_path=~/"$Compound"/Gromacs/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
