@@ -38,6 +38,7 @@ sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
 Tsat = sim_sat[:,2]
 
 tcut_default = 10
+tlow_default = 2
 
 class GreenKubo_MCMC():
     def __init__(self, ilow,ihigh,tcut=tcut_default):
@@ -231,7 +232,7 @@ class GreenKubo_MCMC():
         
         GK_MCMC_visc_avg,nStates,t_GK, w8_model,GK_MCMC_visc_all = self.GK_MCMC_visc_avg,self.nStates,self.t_GK,self.w8_model, self.GK_MCMC_visc_all
         
-        nBoots = 100
+        nBoots = 2
       
         eta_boots = np.zeros([nStates,nBoots])
         eta_low = np.zeros(nStates)
@@ -319,12 +320,16 @@ class GreenKubo_MCMC():
         eta_t = A*alpha*tau1*(1-np.exp(-t/tau1))+A*(1-alpha)*tau2*(1-np.exp(-t/tau2))
         return eta_t
     
-    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default):
+    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default,tlow=tlow_default):
         """ Fits the viscosity data to correlation with assigned weights """
         
         eta_data = eta_data[t_data<tcut]
         w8_data = w8_data[t_data<tcut]
         t_data = t_data[t_data<tcut]
+
+        eta_data = eta_data[t_data>tlow]
+        w8_data = w8_data[t_data>tlow]
+        t_data = t_data[t_data>tlow]
         
         eta_t = lambda params: self.eta_hat(t_data,params)
         
@@ -1146,7 +1151,7 @@ class GreenKubo_SaturatedMCMC():
         plt.ylabel('Viscosity (cP)')
         plt.legend()
                 
-        fig.savefig('GK_MCMC_all_rho'+str(irho)+'.pdf') 
+        fig.savefig('GK_MCMC_all_rho'+str(irho)+'.png') 
         plt.close()    
         
     def plot_scan_tcut_b(self):
