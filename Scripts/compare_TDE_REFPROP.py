@@ -1,20 +1,17 @@
 """
-
-Plot histograms of MCMC results
+Compare simulation results with experimental data in TDE and REFPROP correlations
+Must call from "$output_path" with the following files already created:
+    SaturatedSettings.txt
+    REFPROP_eta_sat.txt
+    TDE_eta_sat.txt
+    GK_eta_boots_rho"$irho"
 """
 
 from __future__ import division
 import numpy as np 
-import os, sys, argparse, shutil
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import CoolProp.CoolProp as CP
-import time
-import scipy.integrate as integrate
-from scipy.optimize import minimize
-from scipy import stats
-from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 
 font = {'size' : '24'}
 plt.rc('font',**font)
