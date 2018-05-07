@@ -10,7 +10,7 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C3H8
+Compound=NEOC5H12
 Model=Potoff
 Conditions_type=Saturation 
 
@@ -20,10 +20,9 @@ scripts_path=~/Scripts
 conditions_path=~/"$Conditions_type"_Conditions
 exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
-mdp_path=~/Tabulated
-output_path=~/"$Compound"/Gromacs/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+output_path=~/"$Compound"/Gromacs/Viscosity/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-cp "$scripts_path"/nAlkanes_SaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/branchedAlkanes_SaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
 
 ### Read the temperature, box size, and number of molecules
 
@@ -216,6 +215,25 @@ lam_sim=12.0
 
 fi
 
+if [ "$lam_sim" = 12.0 ]
+then
+
+echo "Using native Lennard-Jones potential"
+mdp_path=~/LennardJones
+#Originally I tried to have a tab_flag variable, but it was not working for tabulated because
+#using "$tab_flag" in mdrun was different than echo. Fortunately, I discovered that Gromacs
+#will just ignore the provided table if the vdwtype is cut-off instead of user.
+#tab_flag=""
+
+else
+
+echo "Using tabulated potential"
+mdp_path=~/Tabulated
+#This also required copying tab_it into the output_path whereas it is typically output_path/MCMC_iMCMC
+#tab_flag="-table $output_path/tab_it.xvg "
+
+fi
+
 ### Copy experimental data files to output directory
 
 cp "$exp_data_path"/"$Compound"_TDE_eta_sat.txt "$output_path"/TDE_eta_sat.txt
@@ -227,7 +245,7 @@ echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 4) # Number of temperatures to run (0 4)
+for j in $(seq 0 0) # Number of temperatures to run (0 4)
 
 do
 
@@ -237,13 +255,13 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings
 
 nRep=0
 
-NREPS=20 #Run 20 replicates in parallel
+NREPS=1 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 1) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 0) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -252,14 +270,14 @@ do
 
 cd "$output_path" || exit
 
-echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim"
+echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim" epsCH = "$epsCH_sim" sigCH = "$sigCH_sim" lamCH = "$lam_sim" epsC = "$epsC_sim" sigC = "$sigC_sim" lamC = "$lam_sim"
 
 ####
 
 mkdir MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || exit
 
-###Create files with force field parameters
+#Create files with force field parameters
 
 python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3_sim" --sigma "$sigCH3_sim"
 
@@ -271,22 +289,95 @@ python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2_sim" --
 C6_CH2_sim=$(<C6_it)
 Clam_CH2_sim=$(<Clam_it)
 
-#epsCH3CH2=$(echo "sqrt (( $epsCH3_sim*$epsCH2_sim ))" | bc -l)
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH_sim" --sigma "$sigCH_sim"
+
+C6_CH_sim=$(<C6_it)
+Clam_CH_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsC_sim" --sigma "$sigC_sim"
+
+C6_C_sim=$(<C6_it)
+Clam_C_sim=$(<Clam_it)
 
 python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH2_sim"
 
 epsCH3CH2_sim=$(<comb_rule)
 
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH_sim"
+
+epsCH3CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsC_sim"
+
+epsCH3C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsCH_sim"
+
+epsCH2CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsC_sim"
+
+epsCH2C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH_sim" "$epsC_sim"
+
+epsCHC_sim=$(<comb_rule)
+
 python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH2_sim"
 
 sigCH3CH2_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH_sim"
+
+sigCH3CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigC_sim"
+
+sigCH3C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigCH_sim"
+
+sigCH2CH_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigC_sim"
+
+sigCH2C_sim=$(<comb_rule)
+
+python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH_sim" "$sigC_sim"
+
+sigCHC_sim=$(<comb_rule)
 
 python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH2_sim" --sigma "$sigCH3CH2_sim"
 
 C6_CH3CH2_sim=$(<C6_it)
 Clam_CH3CH2_sim=$(<Clam_it)
 
-echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" > eps_sig_lam_ref
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH_sim" --sigma "$sigCH3CH_sim"
+
+C6_CH3CH_sim=$(<C6_it)
+Clam_CH3CH_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3C_sim" --sigma "$sigCH3C_sim"
+
+C6_CH3C_sim=$(<C6_it)
+Clam_CH3C_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2CH_sim" --sigma "$sigCH2CH_sim"
+
+C6_CH2CH_sim=$(<C6_it)
+Clam_CH2CH_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2C_sim" --sigma "$sigCH2C_sim"
+
+C6_CH2C_sim=$(<C6_it)
+Clam_CH2C_sim=$(<Clam_it)
+
+python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCHC_sim" --sigma "$sigCHC_sim"
+
+C6_CHC_sim=$(<C6_it)
+Clam_CHC_sim=$(<Clam_it)
+
+echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH_sim" "$sigCH_sim" "$lam_sim" "$epsC_sim" "$sigC_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" "$epsCH3CH_sim" "$sigCH3CH_sim" "$lam_sim" "$epsCH3C_sim" "$sigCH3C_sim" "$lam_sim" "$epsCH2CH_sim" "$sigCH2CH_sim" "$lam_sim" "$epsCH2C_sim" "$sigCH2C_sim" "$lam_sim" "$epsCHC_sim" "$sigCHC_sim" "$lam_sim" > eps_sig_lam_ref
 echo "$bondlength_CH3" > bondlength_CH3
 
 cp "$input_path"/"$Compound"_temp.top "$Compound".top 
@@ -295,19 +386,27 @@ sed -i -e s/some_C6_CH3/"$C6_CH3_sim"/ "$Compound".top
 sed -i -e s/some_Clam_CH3/"$Clam_CH3_sim"/ "$Compound".top
 sed -i -e s/some_C6_CH2/"$C6_CH2_sim"/ "$Compound".top
 sed -i -e s/some_Clam_CH2/"$Clam_CH2_sim"/ "$Compound".top
+sed -i -e s/some_C6_CH/"$C6_CH_sim"/ "$Compound".top
+sed -i -e s/some_Clam_CH/"$Clam_CH_sim"/ "$Compound".top
+sed -i -e s/some_C6_C/"$C6_C_sim"/ "$Compound".top
+sed -i -e s/some_Clam_C/"$Clam_C_sim"/ "$Compound".top
+
 sed -i -e s/some_C6_combCH3CH2/"$C6_CH3CH2_sim"/ "$Compound".top
 sed -i -e s/some_Clam_combCH3CH2/"$Clam_CH3CH2_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH3CH/"$C6_CH3CH_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH3CH/"$Clam_CH3CH_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH3C/"$C6_CH3C_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH3C/"$Clam_CH3C_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH2CH/"$C6_CH2CH_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH2CH/"$Clam_CH2CH_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCH2C/"$C6_CH2C_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCH2C/"$Clam_CH2C_sim"/ "$Compound".top
+sed -i -e s/some_C6_combCHC/"$C6_CHC_sim"/ "$Compound".top
+sed -i -e s/some_Clam_combCHC/"$Clam_CHC_sim"/ "$Compound".top
+
 sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
-sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
 
-### Record state points, include header if creating file
-### Moved this outside of loop
-#if [ -e "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt ]
-#then
-#echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
-#fi
-
-# Initialize the folders, copy files, and insert variables
+### Initialize the folders, copy files, and insert variables
 
 cd "$output_path"/MCMC_"$iMCMC" || exit #presumes this dir was made previously
 
@@ -324,7 +423,7 @@ cd    Rep"$nRep" || exit
 
 gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
-#Copy the minimization files
+###Copy the minimization files
 
 cp "$mdp_path"/em_steep.mdp em_steep.mdp
 cp "$mdp_path"/em_l-bfgs.mdp em_l-bfgs.mdp
@@ -335,24 +434,24 @@ sed -i -e s/some_rvdw/"$rvdw"/ em_l-bfgs.mdp
 mkdir NVT_eq
 cd NVT_eq || exit
 
-# Copy the equilibration files and edit the temperature
+### Copy the equilibration files and edit the temperature
 
 cp "$mdp_path"/nvt_eq_no_output.mdp nvt_eq.mdp
 sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_eq.mdp
 sed -i -e s/some_nsteps/"$nsteps_eq"/ nvt_eq.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_eq.mdp
 
-# Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
+### Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
 
 mkdir NVT_prod
 cd NVT_prod || exit
 
-# Create new directory for viscosity run
+### Create new directory for viscosity run
 
 mkdir NVT_vis
 cd NVT_vis || exit
 
-# Copy the viscosity files and edit the temperature
+### Copy the viscosity files and edit the temperature
 
 cp "$mdp_path"/nvt_vis_no_xv.mdp nvt_vis.mdp
 sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_vis.mdp
@@ -373,8 +472,8 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fre
 
 gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
 #We now use a different approach for assigning nodes
-#gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
-gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
 taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
@@ -405,8 +504,8 @@ echo pinoffset = "$pinoffset"
 cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
 
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
-#gmx mdrun -table ../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
-gmx mdrun -table ../../../tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
 taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
@@ -445,8 +544,8 @@ rm ../step*.pdb
 fi
 
 gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
-#gmx mdrun -table ../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
-gmx mdrun -table ../../../../tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm nvt_eq > runout 2>> runout &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm nvt_eq > runout 2>> runout &
 taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_eq))
@@ -482,8 +581,8 @@ echo pinoffset = "$pinoffset"
 cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
 
 gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
-#gmx mdrun -table ../../../../../../tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
-gmx mdrun -table ../../../../../../tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
 taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_vis))
