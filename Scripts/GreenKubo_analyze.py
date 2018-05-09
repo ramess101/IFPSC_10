@@ -545,12 +545,16 @@ class GreenKubo_SaturatedReplicates():
         eta_t = A*alpha*tau1*(1-np.exp(-t/tau1))+A*(1-alpha)*tau2*(1-np.exp(-t/tau2))
         return eta_t
     
-    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default):
+    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default,tlow=tlow_default):
         """ Fits the viscosity data to correlation with assigned weights """
         
         eta_data = eta_data[t_data<tcut]
         w8_data = w8_data[t_data<tcut]
         t_data = t_data[t_data<tcut]
+
+        eta_data = eta_data[t_data>tlow]
+        w8_data = w8_data[t_data>tlow]
+        t_data = t_data[t_data>tlow]
         
         eta_t = lambda params: self.eta_hat(t_data,params)
         
@@ -903,12 +907,16 @@ class GreenKubo_SaturatedMCMC():
         eta_t = A*alpha*tau1*(1-np.exp(-t/tau1))+A*(1-alpha)*tau2*(1-np.exp(-t/tau2))
         return eta_t
     
-    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default):
+    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default,tlow=tlow_default):
         """ Fits the viscosity data to correlation with assigned weights """
         
         eta_data = eta_data[t_data<tcut]
         w8_data = w8_data[t_data<tcut]
         t_data = t_data[t_data<tcut]
+
+        eta_data = eta_data[t_data>tlow]
+        w8_data = w8_data[t_data>tlow]
+        t_data = t_data[t_data>tlow]
         
         eta_t = lambda params: self.eta_hat(t_data,params)
         

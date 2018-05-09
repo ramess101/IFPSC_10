@@ -10,8 +10,8 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C3H8
-Model=TraPPE
+Compound=C4H10
+Model=Potoff
 Conditions_type=Saturation 
 
 #Set the number of molecules
@@ -25,7 +25,7 @@ exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
 output_path=~/"$Compound"/Gromacs/"$Model"_N"$Nmol" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-cp "$scripts_path"/nAlkanes_SaturatedViscosity "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/nAlkanes_SaturatedViscosity_FiniteSize "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
 
 ### Read the temperature, box size that depends on number of molecules
 
@@ -256,7 +256,7 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings
 
 nRep=0
 
-NREPS=20 #Run 20 replicates in parallel
+NREPS=15 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 

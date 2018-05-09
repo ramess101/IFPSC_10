@@ -31,11 +31,14 @@ TDE_eta_sat = TDE_Tsat_eta[:,1]
 fig,axarr = plt.subplots(ncols=2,nrows=1,figsize=[20,10])
 
 axarr[0].set_yscale("log")
+
+nrho = len(Tsat_sim)
+irho0 = int(5 - nrho)
     
-for irho in range(5):
+for irho in range(nrho):
     
     try:
-        eta_MCMC =  np.loadtxt('GK_eta_boots_rho'+str(irho)) 
+        eta_MCMC =  np.loadtxt('GK_eta_boots_rho'+str(irho+irho0)) 
         per_error_MCMC = (eta_MCMC-RP_eta_sim[irho])/RP_eta_sim[irho]*100.
         per_error_MCMC_sorted = np.sort(per_error_MCMC)
         i95 = int(0.025*len(per_error_MCMC_sorted))
@@ -67,6 +70,6 @@ axarr[1].legend()
 
 fig.tight_layout()
 
-fig.savefig('compare_TDE_REFPROP.pdf')
+fig.savefig('compare_TDE_REFPROP.png')
 
 plt.show()
