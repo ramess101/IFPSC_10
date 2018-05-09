@@ -29,13 +29,13 @@ try:
 #    RP_IT_sim = np.loadtxt('REFPROP_eta_IT_sim.txt',skiprows=1)
 #    rho_IT_sim = RP_IT_sim[:,0]
 #    eta_IT_RP_sim = RP_IT_sim[:,1]
+
+    sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
+    Tsat = sim_sat[:,2]
     
 except:
     
     pass
-
-sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
-Tsat = sim_sat[:,2]
 
 tcut_default = 10
 tlow_default = 2
