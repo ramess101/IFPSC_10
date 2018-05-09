@@ -275,7 +275,7 @@ echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" l
 
 ####
 
-mkdir MCMC_"$iMCMC"
+mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || exit
 
 ###Create files with force field parameters
@@ -334,15 +334,15 @@ sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
 
 cd "$output_path"/MCMC_"$iMCMC" || exit #presumes this dir was made previously
 
-mkdir Saturated
+mkdir -p Saturated
 cd Saturated || exit
 
-mkdir rho"$j"
+mkdir -p rho"$j"
 cd    rho"$j" || exit
 
 #echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
 
-mkdir Rep"$nRep"  
+mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
 gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
@@ -355,7 +355,7 @@ cp "$mdp_path"/em_l-bfgs.mdp em_l-bfgs.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ em_steep.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ em_l-bfgs.mdp
 
-mkdir NVT_eq
+mkdir -p NVT_eq
 cd NVT_eq || exit
 
 # Copy the equilibration files and edit the temperature
@@ -367,12 +367,12 @@ sed -i -e s/some_rvdw/"$rvdw"/ nvt_eq.mdp
 
 # Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
 
-mkdir NVT_prod
+mkdir -p NVT_prod
 cd NVT_prod || exit
 
 # Create new directory for viscosity run
 
-mkdir NVT_vis
+mkdir -p NVT_vis
 cd NVT_vis || exit
 
 # Copy the viscosity files and edit the temperature
