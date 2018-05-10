@@ -10,12 +10,12 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C4H10
-Model=Potoff
+Compound=C8H18
+Model=TraPPE
 Conditions_type=Saturation 
 
 #Set the number of molecules
-Nmol=100
+Nmol=200
 
 #Specify the path location
 
@@ -345,7 +345,7 @@ cd    rho"$j" || exit
 mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 100 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
 #Copy the minimization files
 
@@ -550,15 +550,38 @@ Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
 
 ### Analyze Green-Kubo and Einstein
 
-echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out
+echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out &
 
+done #for iMCMC
+
+nit=0
+maxit=6000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 10s
+echo "Still post processing viscosity data"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+done
+
+echo "Removing large viscosity output files"
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+if [ -e vis_out ]
+then
 #rm nvt_vis.trr
 rm energy.xvg
 rm nvt_vis.edr
 rm enecorr.xvg
 rm -f \#*
-
-echo "Still post processing viscosity data"
+else
+echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+fi
 
 done #for iMCMC
 

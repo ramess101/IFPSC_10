@@ -17,7 +17,11 @@ font = {'size' : '24'}
 plt.rc('font',**font)
 
 sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
-Tsat_sim = sim_sat[:,2]
+
+try:
+    Tsat_sim = sim_sat[:,2]
+except:
+    Tsat_sim = np.array([sim_sat[2]])
 
 RP_Tsat_eta = np.loadtxt('REFPROP_eta_sat.txt',skiprows=1)
 RP_Tsat = RP_Tsat_eta[:,0]
