@@ -551,13 +551,36 @@ Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
 
 echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out
 
+done #for iMCMC
+
+nit=0
+maxit=60 #Don't want this too high, so it will finish eventually
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 10s
+echo "Still post processing viscosity data"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+done
+
+echo "Removing large viscosity output files"
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+if [ -e vis_out ]
+then
 #rm nvt_vis.trr
 rm energy.xvg
 rm nvt_vis.edr
 rm enecorr.xvg
 rm -f \#*
-
-echo "Still post processing viscosity data"
+else
+echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+fi
 
 done #for iMCMC
 

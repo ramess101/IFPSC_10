@@ -555,7 +555,7 @@ echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_o
 done #for iMCMC
 
 nit=0
-maxit=6000
+maxit=60 #Don't want this too high, so it will finish eventually
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
