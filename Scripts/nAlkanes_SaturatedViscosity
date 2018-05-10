@@ -344,7 +344,7 @@ cd    rho"$j" || exit
 mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 100 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
 #Copy the minimization files
 

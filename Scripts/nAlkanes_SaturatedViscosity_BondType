@@ -10,9 +10,10 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=NEOC5H12
-Model=Potoff
+Compound=C3H8
+Model=TraPPE
 Conditions_type=Saturation 
+BondType=harmonic #harmonic or LINCS
 
 #Specify the path location
 
@@ -20,9 +21,9 @@ scripts_path=~/Scripts
 conditions_path=~/"$Conditions_type"_Conditions
 exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
-output_path=~/"$Compound"/Gromacs/Viscosity/"$Model" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+output_path=~/"$Compound"/Gromacs/"$Model"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-cp "$scripts_path"/branchedAlkanes_SaturatedViscosity_tabulated "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/nAlkanes_SaturatedViscosity "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
 
 ### Read the temperature, box size, and number of molecules
 
@@ -245,7 +246,7 @@ echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 0) # Number of temperatures to run (0 4)
+for j in $(seq 0 4) # Number of temperatures to run (0 4)
 
 do
 
@@ -255,13 +256,13 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings
 
 nRep=0
 
-NREPS=1 #Run 20 replicates in parallel
+NREPS=20 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 0) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 1) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -270,14 +271,14 @@ do
 
 cd "$output_path" || exit
 
-echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim" epsCH = "$epsCH_sim" sigCH = "$sigCH_sim" lamCH = "$lam_sim" epsC = "$epsC_sim" sigC = "$sigC_sim" lamC = "$lam_sim"
+echo Run Saturated Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim"
 
 ####
 
 mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || exit
 
-#Create files with force field parameters
+###Create files with force field parameters
 
 python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3_sim" --sigma "$sigCH3_sim"
 
@@ -289,95 +290,22 @@ python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2_sim" --
 C6_CH2_sim=$(<C6_it)
 Clam_CH2_sim=$(<Clam_it)
 
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH_sim" --sigma "$sigCH_sim"
-
-C6_CH_sim=$(<C6_it)
-Clam_CH_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsC_sim" --sigma "$sigC_sim"
-
-C6_C_sim=$(<C6_it)
-Clam_C_sim=$(<Clam_it)
+#epsCH3CH2=$(echo "sqrt (( $epsCH3_sim*$epsCH2_sim ))" | bc -l)
 
 python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH2_sim"
 
 epsCH3CH2_sim=$(<comb_rule)
 
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH_sim"
-
-epsCH3CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsC_sim"
-
-epsCH3C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsCH_sim"
-
-epsCH2CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsC_sim"
-
-epsCH2C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH_sim" "$epsC_sim"
-
-epsCHC_sim=$(<comb_rule)
-
 python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH2_sim"
 
 sigCH3CH2_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH_sim"
-
-sigCH3CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigC_sim"
-
-sigCH3C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigCH_sim"
-
-sigCH2CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigC_sim"
-
-sigCH2C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH_sim" "$sigC_sim"
-
-sigCHC_sim=$(<comb_rule)
 
 python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH2_sim" --sigma "$sigCH3CH2_sim"
 
 C6_CH3CH2_sim=$(<C6_it)
 Clam_CH3CH2_sim=$(<Clam_it)
 
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH_sim" --sigma "$sigCH3CH_sim"
-
-C6_CH3CH_sim=$(<C6_it)
-Clam_CH3CH_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3C_sim" --sigma "$sigCH3C_sim"
-
-C6_CH3C_sim=$(<C6_it)
-Clam_CH3C_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2CH_sim" --sigma "$sigCH2CH_sim"
-
-C6_CH2CH_sim=$(<C6_it)
-Clam_CH2CH_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2C_sim" --sigma "$sigCH2C_sim"
-
-C6_CH2C_sim=$(<C6_it)
-Clam_CH2C_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCHC_sim" --sigma "$sigCHC_sim"
-
-C6_CHC_sim=$(<C6_it)
-Clam_CHC_sim=$(<Clam_it)
-
-echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH_sim" "$sigCH_sim" "$lam_sim" "$epsC_sim" "$sigC_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" "$epsCH3CH_sim" "$sigCH3CH_sim" "$lam_sim" "$epsCH3C_sim" "$sigCH3C_sim" "$lam_sim" "$epsCH2CH_sim" "$sigCH2CH_sim" "$lam_sim" "$epsCH2C_sim" "$sigCH2C_sim" "$lam_sim" "$epsCHC_sim" "$sigCHC_sim" "$lam_sim" > eps_sig_lam_ref
+echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" > eps_sig_lam_ref
 echo "$bondlength_CH3" > bondlength_CH3
 
 cp "$input_path"/"$Compound"_temp.top "$Compound".top 
@@ -386,27 +314,23 @@ sed -i -e s/some_C6_CH3/"$C6_CH3_sim"/ "$Compound".top
 sed -i -e s/some_Clam_CH3/"$Clam_CH3_sim"/ "$Compound".top
 sed -i -e s/some_C6_CH2/"$C6_CH2_sim"/ "$Compound".top
 sed -i -e s/some_Clam_CH2/"$Clam_CH2_sim"/ "$Compound".top
-sed -i -e s/some_C6_CH/"$C6_CH_sim"/ "$Compound".top
-sed -i -e s/some_Clam_CH/"$Clam_CH_sim"/ "$Compound".top
-sed -i -e s/some_C6_C/"$C6_C_sim"/ "$Compound".top
-sed -i -e s/some_Clam_C/"$Clam_C_sim"/ "$Compound".top
-
 sed -i -e s/some_C6_combCH3CH2/"$C6_CH3CH2_sim"/ "$Compound".top
 sed -i -e s/some_Clam_combCH3CH2/"$Clam_CH3CH2_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH3CH/"$C6_CH3CH_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH3CH/"$Clam_CH3CH_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH3C/"$C6_CH3C_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH3C/"$Clam_CH3C_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH2CH/"$C6_CH2CH_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH2CH/"$Clam_CH2CH_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH2C/"$C6_CH2C_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH2C/"$Clam_CH2C_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCHC/"$C6_CHC_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCHC/"$Clam_CHC_sim"/ "$Compound".top
-
 sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
+sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
 
-### Initialize the folders, copy files, and insert variables
+### Copy tab_it.xvg to previous directory, assumes that all MCMC parameter sets use the same value of lambda
+#Not needed anymore
+#cp tab_it.xvg ../tab_it.xvg
+
+### Record state points, include header if creating file
+### Moved this outside of loop
+#if [ -e "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt ]
+#then
+#echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
+#fi
+
+# Initialize the folders, copy files, and insert variables
 
 cd "$output_path"/MCMC_"$iMCMC" || exit #presumes this dir was made previously
 
@@ -423,7 +347,7 @@ cd    Rep"$nRep" || exit
 
 gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 100 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
-###Copy the minimization files
+#Copy the minimization files
 
 cp "$mdp_path"/em_steep.mdp em_steep.mdp
 cp "$mdp_path"/em_l-bfgs.mdp em_l-bfgs.mdp
@@ -434,26 +358,26 @@ sed -i -e s/some_rvdw/"$rvdw"/ em_l-bfgs.mdp
 mkdir -p NVT_eq
 cd NVT_eq || exit
 
-### Copy the equilibration files and edit the temperature
+# Copy the equilibration files and edit the temperature
 
-cp "$mdp_path"/nvt_eq_no_output.mdp nvt_eq.mdp
+cp "$mdp_path"/nvt_eq_no_output_"$BondType".mdp nvt_eq.mdp
 sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_eq.mdp
 sed -i -e s/some_nsteps/"$nsteps_eq"/ nvt_eq.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_eq.mdp
 
-### Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
+# Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
 
 mkdir -p NVT_prod
 cd NVT_prod || exit
 
-### Create new directory for viscosity run
+# Create new directory for viscosity run
 
 mkdir -p NVT_vis
 cd NVT_vis || exit
 
-### Copy the viscosity files and edit the temperature
+# Copy the viscosity files and edit the temperature
 
-cp "$mdp_path"/nvt_vis_no_xv.mdp nvt_vis.mdp
+cp "$mdp_path"/nvt_vis_no_xv_"$BondType".mdp nvt_vis.mdp
 sed -i -e s/some_temperature/"${Tsat[j]}"/ nvt_vis.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_vis.mdp
 
@@ -628,13 +552,36 @@ Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
 
 echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out
 
+done #for iMCMC
+
+nit=0
+maxit=60 #Don't want this too high, so it will finish eventually
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 10s
+echo "Still post processing viscosity data"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+done
+
+echo "Removing large viscosity output files"
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+if [ -e vis_out ]
+then
 #rm nvt_vis.trr
 rm energy.xvg
 rm nvt_vis.edr
 rm enecorr.xvg
 rm -f \#*
-
-echo "Still post processing viscosity data"
+else
+echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+fi
 
 done #for iMCMC
 
