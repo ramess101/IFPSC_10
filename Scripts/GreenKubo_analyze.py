@@ -37,7 +37,7 @@ except:
     
     pass
 
-tcut_default = 10
+tcut_default = 500
 tlow_default = 2
 
 class GreenKubo_MCMC():
@@ -232,7 +232,7 @@ class GreenKubo_MCMC():
         
         GK_MCMC_visc_avg,nStates,t_GK, w8_model,GK_MCMC_visc_all = self.GK_MCMC_visc_avg,self.nStates,self.t_GK,self.w8_model, self.GK_MCMC_visc_all
         
-        nBoots = 2
+        nBoots = 100
       
         eta_boots = np.zeros([nStates,nBoots])
         eta_low = np.zeros(nStates)
@@ -822,10 +822,12 @@ class GreenKubo_SaturatedMCMC():
         assert self.nMCMC*self.nReps == len(self.fpath_all), 'Number of MCMC/replicates is incorrect'
         self.GK_MCMC = self.gen_GK_MCMC()
         self.nTime = len(self.GK_MCMC[0].t_GK)    
-        self.GK_MCMC_all, self.t_GK = self.compile_GK_MCMC() 
-        self.w8_model = self.w8_hat()                     
+        self.GK_MCMC_all, self.t_GK, self.sig_GK_MCMC = self.compile_GK_MCMC() 
+        self.w8_model, self.Aopt,self.bopt = self.w8_hat(fit=True)                
         self.GK_MCMC_avg = self.GK_time_avg()
         self.eta_inf, self.opt_fit = self.calc_eta_inf()
+        self.plot_w8_fit()     
+        self.plot_eta_fit()     
 #        self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots, self.tcut_boots, self.b_boots = self.bootstrap_eta()
         self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots = self.bootstrap_eta_alt()
         
@@ -855,12 +857,106 @@ class GreenKubo_SaturatedMCMC():
     
         return GK_MCMC
         
-    def w8_hat(self,fit=False):
+    def w8_hat(self,fit=False,sig_data=None):
         t_GK = self.t_GK
         if not fit:
-            w8_model = t_GK**(-0.5)
-        return w8_model
-            
+            bopt=0.5
+            Aopt=None
+            print('Using default weighting exponent of '+str(bopt))
+        else:
+            if sig_data == None:
+                sig_data = self.sig_GK_MCMC
+            Aopt,bopt = self.fit_w8(t_GK,sig_data)
+            print('Optimal weighting exponent is '+str(bopt))
+        w8_model = t_GK**(-bopt)
+        return w8_model, Aopt,bopt
+
+    def fit_w8(self,t_data,sig_data,tlow=tlow_default):
+        """ Fits the viscosity standard deviation to correlation """
+        
+        tcut = self.tcut
+
+        sig_data = sig_data[t_data<tcut]
+        t_data = t_data[t_data<tcut]
+
+        sig_data = sig_data[t_data>tlow]
+        t_data = t_data[t_data>tlow]
+        
+        sig_t = lambda params: params[0]*t_data**(params[1])
+        
+        SSE = lambda params: np.sum(((sig_t(params) - sig_data)/sig_data)**2)
+                             
+        guess = [sig_data[0],0.5]
+        
+        bnds=((0,np.max(sig_data)),(0.05,0.95))
+                     
+        opt = minimize(SSE,guess,bounds=bnds)
+
+        opt_fit = opt.x                     
+
+        Aopt = opt_fit[0]
+        bopt = opt_fit[1]    
+
+        return Aopt,bopt
+    
+    def plot_w8_fit(self,tlow=tlow_default):
+        """ Plots the standard deviation and model fit """
+
+        t_GK, sig_GK_MCMC, Aopt, bopt, tcut, irho = self.t_GK, self.sig_GK_MCMC, self.Aopt,self.bopt, self.tcut, self.irho
+        
+        if Aopt == None:
+
+            Aopt = sig_GK_MCMC[t_GK>tlow][0]
+       
+        tplot = np.linspace(tlow,t_GK.max(),10000)
+        sig_plot = Aopt*tplot**(bopt)
+        
+        fig = plt.figure(figsize=(6,6))
+        
+        plt.plot(t_GK,sig_GK_MCMC,'b:',label=r'$\sigma$')
+        plt.plot(tplot,sig_plot,'r--',label='Fit')
+        plt.plot([tcut,tcut],[0,sig_plot.max()],'g-.',label='Cut-off')
+        
+        plt.xlabel('Time (ps)')
+#        plt.xlim([0,tcut])
+        plt.xlim([0,t_GK.max()])
+        
+        plt.ylim(ymin=0)
+        plt.ylabel(r'$\sigma$ (cP)')
+        plt.legend()
+
+        plt.tight_layout()
+                
+        fig.savefig('sig_fit_rho'+str(irho)+'.pdf') 
+        plt.close()  
+
+    def plot_eta_fit(self):
+        """ Plots the fit to the average """
+        
+        nMCMC, GK_MCMC_all,GK_MCMC_avg, t_GK, tcut, irho = self.nMCMC,self.GK_MCMC_all,self.GK_MCMC_avg, self.t_GK, self.tcut, self.irho
+        
+        tplot = np.linspace(0,t_GK.max(),10000)
+        GK_plot = self.eta_hat(tplot,self.opt_fit)
+        
+        GK_boot_low = np.ones(len(tplot))*100.
+        GK_boot_high = np.ones(len(tplot))*(-100.)
+        
+        fig = plt.figure(figsize=(6,6))
+        
+        plt.plot(t_GK,GK_MCMC_avg,'k-',label='Average')
+        plt.plot(tplot,GK_plot,'b--',label='Fit')
+        plt.plot([tcut,tcut],[0,GK_plot.max()],'g-.',label='Cut-off')
+        
+        plt.xlabel('Time (ps)')
+#        plt.xlim([0,tcut])
+        
+        plt.ylim(ymin=0)
+        plt.ylabel('Viscosity (cP)')
+        plt.legend()
+                
+        fig.savefig('eta_fit_rho'+str(irho)+'.pdf') 
+        plt.close()
+        
     def compile_GK_MCMC(self):
         """ Compile the Green-Kubo values for all MCMC samples """
         nMCMC,nTime,GK_MCMC = self.nMCMC, self.nTime, self.GK_MCMC
@@ -872,8 +968,9 @@ class GreenKubo_SaturatedMCMC():
             GK_MCMC_all[:,iMCMC] = GK_MCMC[iMCMC].visc_GK
                                 
         t_GK = GK_MCMC[0].t_GK
+        sig_GK_MCMC = GK_MCMC_all.std(axis=1)
             
-        return GK_MCMC_all, t_GK
+        return GK_MCMC_all, t_GK, sig_GK_MCMC
     
     def GK_time_avg(self):
         """ Averages the viscosity at each time for different MCMC samples """
@@ -944,8 +1041,13 @@ class GreenKubo_SaturatedMCMC():
     
     def bootstrap_eta(self):
         
-        GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all
+        GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,bopt = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.bopt
         
+        #Thin data to speed up fit
+        GK_MCMC_all = GK_MCMC_all[::100]
+        t_GK = t_GK[::100]
+        w8_model = w8_model[::100]
+
         nBoots = 1000
         self.nBoots = nBoots
         eta_boots = np.zeros(nBoots)
@@ -954,8 +1056,8 @@ class GreenKubo_SaturatedMCMC():
         opt_fit_boots = []
                 
         tcut_range = np.linspace(0.8*self.tcut,10*self.tcut)
-        b_low = 0.4
-        b_high = 0.6
+        b_low = 0.8*bopt
+        b_high = 1.2*bopt
         
         for iBoots in range(nBoots):
             
@@ -967,15 +1069,15 @@ class GreenKubo_SaturatedMCMC():
             eta_avg = np.sum(GK_MCMC_all*w8_boots,axis=1)/np.sum(w8_boots)
 #            eta_avg = GK_MCMC_avg # This approach does not do any random sampling of replicates
             
-            tcut = np.random.choice(tcut_range)
+            tcut_random = np.random.choice(tcut_range)
             b_random = np.random.uniform(b_low,b_high)
             w8_model = t_GK**(-b_random)
         
-            opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut)
+            opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut_random)
             eta_boots[iBoots] = self.calc_eta_estimate(opt_fit)
             
             opt_fit_boots.append(opt_fit)
-            tcut_boots[iBoots] = tcut
+            tcut_boots[iBoots] = tcut_random
             b_boots[iBoots] = b_random
         
         eta_boots_sorted = np.sort(np.array(eta_boots))
@@ -994,7 +1096,12 @@ class GreenKubo_SaturatedMCMC():
 
     def bootstrap_eta_alt(self):
         
-        GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,irho = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.irho
+        GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,irho,bopt = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.irho,self.bopt
+        
+        #Thin data to speed up fit
+        GK_MCMC_all = GK_MCMC_all[::100]
+        t_GK = t_GK[::100]
+        w8_model = w8_model[::100]
         
         nBootsMCMC = 100
         nBootsReps = 200
@@ -1005,8 +1112,8 @@ class GreenKubo_SaturatedMCMC():
         opt_fit_boots = []
                 
         tcut_range = np.linspace(0.8*self.tcut,10*self.tcut)
-        b_low = 0.4
-        b_high = 0.6
+        b_low = 0.8*bopt
+        b_high = 1.2*bopt
 
         ieta = 0
         
@@ -1028,11 +1135,11 @@ class GreenKubo_SaturatedMCMC():
                 eta_avg = np.sum(GK_MCMC_reps*w8_boots,axis=1)/np.sum(w8_boots)
     #            eta_avg = GK_MCMC_avg # This approach does not do any random sampling of replicates
                 
-                tcut = np.random.choice(tcut_range)
+                tcut_random = np.random.choice(tcut_range)
                 b_random = np.random.uniform(b_low,b_high)
                 w8_model = t_GK**(-b_random)
             
-                opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut)
+                opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut_random)
                 eta_boots[ieta] = self.calc_eta_estimate(opt_fit)
                 
                 opt_fit_boots.append(opt_fit)
