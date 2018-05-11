@@ -23,7 +23,8 @@ exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
 output_path=~/"$Compound"/Gromacs/"$Model"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-cp "$scripts_path"/nAlkanes_SaturatedViscosity "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/nAlkanes_SaturatedViscosity_BondType "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+touch "$output_path"/warnings_job_"$job_date"
 
 ### Read the temperature, box size, and number of molecules
 
@@ -463,7 +464,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq || exit  #st
 
 if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
 then
-echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
 rm ../step*.pdb
 fi
 
@@ -550,7 +551,7 @@ Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
 
 ### Analyze Green-Kubo and Einstein
 
-echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out
+echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out &
 
 done #for iMCMC
 
@@ -580,7 +581,7 @@ rm nvt_vis.edr
 rm enecorr.xvg
 rm -f \#*
 else
-echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
 fi
 
 done #for iMCMC

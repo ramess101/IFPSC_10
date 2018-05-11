@@ -26,6 +26,7 @@ input_path=~/"$Compound"/Gromacs/Gromacs_input
 output_path=~/"$Compound"/Gromacs/"$Model"_N"$Nmol" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
 cp "$scripts_path"/nAlkanes_SaturatedViscosity_FiniteSize "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+touch "$output_path"/warnings_job_"$job_date"
 
 ### Read the temperature, box size that depends on number of molecules
 
@@ -246,7 +247,7 @@ echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 4) # Number of temperatures to run (0 4)
+for j in $(seq 1 4) # Number of temperatures to run (0 4)
 
 do
 
@@ -256,7 +257,7 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings
 
 nRep=0
 
-NREPS=15 #Run 20 replicates in parallel
+NREPS=20 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
@@ -463,7 +464,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq || exit  #st
 
 if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
 then
-echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
 rm ../step*.pdb
 fi
 
@@ -580,7 +581,7 @@ rm nvt_vis.edr
 rm enecorr.xvg
 rm -f \#*
 else
-echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
 fi
 
 done #for iMCMC
