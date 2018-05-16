@@ -1,0 +1,43 @@
+
+Compound=C3H8
+Model=Potoff
+Nmol=400
+
+output_path=/home/ram9/"$Compound"/Gromacs/T293highP_Viscosity/"$Model"_N"$Nmol"
+
+cd "$output_path"
+
+touch press_all_log
+
+j_start=0
+j_end=4
+
+for jrho in $(seq $j_start $j_end)
+
+do
+
+for iMCMC in $(seq 0 59)
+
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$jrho"/Rep0/NVT_eq/NVT_prod/NVT_vis || exit
+
+if [ "$Compound" = Ethane ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $5}' > press_log
+elif [ "$Compound" = C3H8 ] || [ "$Compound" = IC4H10 ] || [ "$Compound" = NEOC5H12 ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $1}' > press_log
+else
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
+fi
+
+cat "$output_path"/press_all_log press_log > "$output_path"/press_all_temp
+
+cp "$output_path"/press_all_temp "$output_path"/press_all_log
+
+rm "$output_path"/press_all_temp
+
+done #for iMCMC
+
+done #for jrho

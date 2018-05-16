@@ -826,6 +826,8 @@ class GreenKubo_SaturatedMCMC():
         self.w8_model, self.Aopt,self.bopt = self.w8_hat(fit=True)                
         self.GK_MCMC_avg = self.GK_time_avg()
         self.eta_inf, self.opt_fit = self.calc_eta_inf()
+        self.tcut = self.solve_tcut()
+        self.eta_inf, self.opt_fit = self.calc_eta_inf()
         self.plot_w8_fit()     
         self.plot_eta_fit()     
 #        self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots, self.tcut_boots, self.b_boots = self.bootstrap_eta()
@@ -1003,10 +1005,21 @@ class GreenKubo_SaturatedMCMC():
         
         eta_t = A*alpha*tau1*(1-np.exp(-t/tau1))+A*(1-alpha)*tau2*(1-np.exp(-t/tau2))
         return eta_t
+
+    def solve_tcut(self):
+
+        Aopt, bopt, eta_inf = self.Aopt, self.bopt, self.eta_inf
+         
+        ratio_Maginn = 0.4 #Recommended heuristic for when to have tcut
+        tcut = (ratio_Maginn * eta_inf / Aopt)**(1./bopt)
+        print('Cutoff time = '+str(tcut))
+        return tcut
     
     def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default,tlow=tlow_default):
         """ Fits the viscosity data to correlation with assigned weights """
         
+        if tcut == tcut_default: tcut = self.tcut
+
         eta_data = eta_data[t_data<tcut]
         w8_data = w8_data[t_data<tcut]
         t_data = t_data[t_data<tcut]
@@ -1111,7 +1124,7 @@ class GreenKubo_SaturatedMCMC():
         eta_boots = np.zeros(nBoots*nBootsMCMC)
         opt_fit_boots = []
                 
-        tcut_range = np.linspace(0.8*self.tcut,10*self.tcut)
+        tcut_range = np.linspace(0.8*self.tcut,1.2*self.tcut)
         b_low = 0.8*bopt
         b_high = 1.2*bopt
 
