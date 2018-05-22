@@ -11,7 +11,7 @@
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=IC8H18
-Model=Potoff
+Model=TraPPE
 Conditions_type=Saturation 
 
 #Set the number of molecules
@@ -266,7 +266,7 @@ echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 8) # Number of temperatures to run (0 4)
+for j in $(seq 0 0) # Number of temperatures to run (0 4)
 
 do
 
@@ -276,13 +276,13 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings
 
 nRep=0
 
-NREPS=20 #Run 20 replicates in parallel
+NREPS=1 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 2) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 0) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -492,17 +492,20 @@ echo pinoffset = "$pinoffset"
 
 cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
 
-gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
+#gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
 #We now use a different approach for assigning nodes
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
-gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
+
+gmx grompp -f em_l-bfgs.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_l-bfgs.tpr -maxwarn 1 > gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l-bfgs > runout 2>> runout &
 taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
 
 done #for iMCMC
 
-echo "Waiting for em_steep.tpr: Energy Minimization Part1"
+echo "Waiting for first energy minimization"
 
 nit=0
 maxit=60000
@@ -525,9 +528,13 @@ echo pinoffset = "$pinoffset"
 
 cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
 
-gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
+#gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
-gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+
+gmx grompp -f em_steep.mdp -c em_l-bfgs.gro -p ../../../"$Compound".top -o em_steep.tpr >> gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout2 2>> runout2 &
+
 taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
@@ -566,7 +573,7 @@ echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC
 rm ../step*.pdb
 fi
 
-gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
+gmx grompp -f nvt_eq.mdp -c ../em_steep.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm nvt_eq > runout 2>> runout &
 taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
