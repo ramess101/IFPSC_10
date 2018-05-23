@@ -13,13 +13,13 @@ job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 Compound=C8H18
 Model=TraPPE
 Conditions_type=T347highP 
-BondType=harmonic #harmonic (flexible) or LINCS (fixed)
+BondType=LINCS #harmonic (flexible) or LINCS (fixed)
 
 #Set the number of molecules
 Nmol=400
 
 #Set the temperature
-Temp=347 #[K]
+Temp=347.57 #[K]
 press=(1.0 1513.7 2505.8 3503.6 5000) #[bar] 
 
 #Specify the path location
@@ -28,9 +28,9 @@ scripts_path=~/Scripts
 conditions_path=~/"$Conditions_type"_Conditions
 exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
-output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType"_NPTfirst #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-cp "$scripts_path"/nOctane_"$Conditions_type"Viscosity "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/nOctane_"$Conditions_type"Viscosity_NPTfirst "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
 touch "$output_path"/warnings_job_"$job_date"
 cp ~/"$Conditions_type"_literature/TraPPE_Kioupis "$output_path"/TraPPE_Kioupis
 cp ~/"$Conditions_type"_literature/TraPPE_Nieto "$output_path"/TraPPE_Nieto
@@ -254,7 +254,7 @@ fi
 
 ### Loop through densities		
 
-for j in $(seq 0 0) # Number of densities to run (0 4)
+for j in $(seq 0 4) # Number of densities to run (0 4)
 
 do
 
@@ -263,13 +263,13 @@ echo "$Nmol" "${liquid_box[j]}" "${Temp}" >> "$output_path"/"$Conditions_type"Se
 
 nRep=0
 
-NREPS=1 #Run 20 replicates in parallel
+NREPS=20 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 0) #Number of batches to run (0 2)
+for iRep in $(seq 0 2) #Number of batches to run (0 2)
 
 do
 
@@ -352,8 +352,6 @@ cd    rho"$j" || exit
 mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
-
 #Copy the minimization files
 
 cp "$mdp_path"/em_steep.mdp em_steep.mdp
@@ -361,27 +359,6 @@ cp "$mdp_path"/em_l-bfgs.mdp em_l-bfgs.mdp
 
 sed -i -e s/some_rvdw/"$rvdw"/ em_steep.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ em_l-bfgs.mdp
-
-mkdir -p NPT_eq
-cd NPT_eq || exit
-
-# Copy the equilibration files and edit the temperature and pressure
-
-cp "$mdp_path"/npt_eq_no_output_"$BondType".mdp npt_eq.mdp
-sed -i -e s/some_temperature/"${Temp}"/ npt_eq.mdp
-sed -i -e s/some_pressure/"${press[j]}"/ npt_eq.mdp
-sed -i -e s/some_nsteps/"$nsteps_eq"/ npt_eq.mdp
-sed -i -e s/some_rvdw/"$rvdw"/ npt_eq.mdp
-
-mkdir -p NPT_prod
-cd NPT_prod || exit
-
-# Copy the production files and edit the temperature and pressure
-
-cp "$mdp_path"/npt_prod_no_output_"$BondType".mdp npt_prod.mdp
-sed -i -e s/some_temperature/"${Temp}"/ npt_prod.mdp
-sed -i -e s/some_pressure/"${press[j]}"/ npt_prod.mdp
-sed -i -e s/some_rvdw/"$rvdw"/ npt_prod.mdp
 
 mkdir -p NVT_eq
 cd NVT_eq || exit
@@ -410,6 +387,11 @@ sed -i -e s/some_temperature/"${Temp}"/ nvt_vis.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_vis.mdp
 
 done # for loop over iMCMC
+
+### Run the NPT steps first to determine the initial box size
+bash "$scripts_path"/nOctane_T347highP_NPTsteps "$Compound" "$Nmol" "${liquid_box[j]}" "$mdp_path" "$BondType" "$Temp" "${press[j]}" "$nsteps_eq" "$rvdw" "$NREP_low" "$NREP_high" "$output_path" "$j" "$nRep"
+
+### Begin the standard NVT steps as done previously
 
 ###First energy minimization
 
@@ -474,46 +456,6 @@ do
 nit=$((nit+1))
 sleep 1s
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
-done
-
-###NPT Equilibration period
-
-pinoffset=28
-ntomp_eq=1
-nt_eq=2
-
-for iMCMC in $(seq $NREP_low $NREP_high)
-do
-
-echo pinoffset = "$pinoffset"
-
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq || exit  #start fresh for do cycle instead of multiple "cd .."'s
-
-if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
-then
-echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
-rm ../step*.pdb
-fi
-
-gmx grompp -f npt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o npt_eq.tpr > gromppout 2>> gromppout
-gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm npt_eq > runout 2>> runout &
-taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
-
-pinoffset=$((pinoffset+nt_eq))
-
-done #for iMCMC
-
-echo Waiting for NPT equilibration
-
-nit=0
-maxit=3000000
-ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/runout | grep -c "GROMACS reminds you")
-while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
-do
-nit=$((nit+1))
-sleep 100s
-echo Waiting for NPT equilibration
-ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/runout | grep -c "GROMACS reminds you")
 done
 
 ###NVT Equilibration period
@@ -652,6 +594,21 @@ echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"
 fi
 
 ### Compile the pressure values
+if [ "$BondType" = harmonic ]
+then
+
+if [ "$Compound" = Ethane ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $1}' > press_log
+elif [ "$Compound" = C3H8 ] || [ "$Compound" = IC4H10 ] || [ "$Compound" = NEOC5H12 ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
+else
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $3}' > press_log
+fi
+
+else
+
 if [ "$Compound" = Ethane ]
 then
 sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $5}' > press_log
@@ -662,6 +619,7 @@ else
 sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
 fi
 
+fi
 cat "$output_path"/press_all_log press_log > "$output_path"/press_all_temp
 cp "$output_path"/press_all_temp "$output_path"/press_all_log
 rm "$output_path"/press_all_temp
@@ -691,8 +649,14 @@ python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --n
 done # for j (loop of densities)
 
 cd "$output_path" || exit
+cp TraPPE_Kioupis ../TraPPE_Kioupis
+cp TraPPE_Nieto ../TraPPE_Nieto
+cp REFPROP_eta_"$Conditions_type" ../REFPROP_eta_"$Conditions_type"
+cp "$Conditions_type"Settings ../"$Conditions_type"Settings
+cd .. # Go back one directory
+
 ###Create plots to compare with experimental data and correlations
-python "$scripts_path"/compare_TDE_REFPROP_test.py --comp "$Compound" --nrhomax $((j+1)) --"$Conditions_type"
+python "$scripts_path"/compare_TraPPE_lit_T347highP.py --comp "$Compound" --nrhomax $((j+1))
 
 exit 0
 

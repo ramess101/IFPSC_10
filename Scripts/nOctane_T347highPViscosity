@@ -13,13 +13,13 @@ job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 Compound=C8H18
 Model=TraPPE
 Conditions_type=T347highP 
-BondType=LINCS #harmonic (flexible) or LINCS (fixed)
+BondType=harmonic #harmonic (flexible) or LINCS (fixed)
 
 #Set the number of molecules
 Nmol=400
 
 #Set the temperature
-Temp=347 #[K]
+Temp=347.57 #[K]
 
 #Specify the path location
 
@@ -590,6 +590,21 @@ echo WARNING: No vis_out file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"
 fi
 
 ### Compile the pressure values
+if [ "$BondType" = harmonic ]
+then
+
+if [ "$Compound" = Ethane ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $1}' > press_log
+elif [ "$Compound" = C3H8 ] || [ "$Compound" = IC4H10 ] || [ "$Compound" = NEOC5H12 ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
+else
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $3}' > press_log
+fi
+
+else
+
 if [ "$Compound" = Ethane ]
 then
 sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $5}' > press_log
@@ -598,6 +613,8 @@ then
 sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $1}' > press_log
 else
 sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
+fi
+
 fi
 
 cat "$output_path"/press_all_log press_log > "$output_path"/press_all_temp
@@ -629,8 +646,13 @@ python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --n
 done # for j (loop of densities)
 
 cd "$output_path" || exit
+cp TraPPE_Kioupis ../TraPPE_Kioupis
+cp TraPPE_Nieto ../TraPPE_Nieto
+cp REFPROP_eta_"$Conditions_type" ../REFPROP_eta_"$Conditions_type"
+cp "$Conditions_type"Settings ../"$Conditions_type"Settings
 ###Create plots to compare with experimental data and correlations
-python "$scripts_path"/compare_TDE_REFPROP_test.py --comp "$Compound" --nrhomax $((j+1)) --"$Conditions_type"
+cd .. # Go back one directory
+python "$scripts_path"/compare_TraPPE_lit_T347highP.py --comp "$Compound" --nrhomax $((j+1))
 
 exit 0
 

@@ -71,15 +71,7 @@ def main():
         L_sim = np.array([sim_sat[1]])
         N_sim = np.array([sim_sat[0]])
 
-    press_sim = np.loadtxt('press_2densities') #[bar]
-    press_sim /= 10. #[MPa]
-
     nrho = nrhomax #len(T_sim)
-    
-    press_sim = press_sim.reshape([nrho,int(len(press_sim)/nrho)])
-    
-    upress_sim = 1.96*np.std(press_sim,axis=1)
-    press_sim = np.mean(press_sim,axis=1)
     
     rho_sim = Lbox_to_rho(L_sim,N_sim,Mw)
     
@@ -88,10 +80,15 @@ def main():
     RP_rho = RP_T347highP_eta[:,2]
     RP_eta_T347highP = RP_T347highP_eta[:,-1]
  
+    colors_list = {'harmonic':'r','LINCS':'b'}
+    shapes_list = {'harmonic':'o','LINCS':'s'}
+
     fig,axarr = plt.subplots(ncols=2,nrows=1,figsize=[20,10])
 
     axarr[0].set_yscale("log")
     axarr[1].set_yscale("log")
+
+    axarr[1].plot(RP_press,RP_eta_T347highP,'k-',linewidth=3,label='REFPROP')
     
     ### Read and plot the literature values
     
@@ -100,28 +97,42 @@ def main():
 
     axarr[0].errorbar(eta_TraPPE_Nieto[:,2],eta_TraPPE_Nieto[:,4],xerr=eta_TraPPE_Nieto[:,3],yerr=eta_TraPPE_Nieto[:,5],fmt='ko',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2,label='Lit. Nieto-Draghi')
     
-    axarr[1].plot(eta_TraPPE_Kioupis[:,0],eta_TraPPE_Kioupis[:,1],'ks',mfc='None',markersize=10,markeredgewidth=2,label='Lit. Kioupis')
-    axarr[1].errorbar(eta_TraPPE_Nieto[:,0],eta_TraPPE_Nieto[:,4],xerr=eta_TraPPE_Nieto[:,1],yerr=eta_TraPPE_Nieto[:,5],fmt='ko',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2,label='Lit. Nieto-Draghi')
+    axarr[1].plot(eta_TraPPE_Kioupis[:,0],eta_TraPPE_Kioupis[:,1],'ko',mfc='None',markersize=10,markeredgewidth=2,label='Lit. Kioupis')
+    axarr[1].errorbar(eta_TraPPE_Nieto[:,0],eta_TraPPE_Nieto[:,4],xerr=eta_TraPPE_Nieto[:,1],yerr=eta_TraPPE_Nieto[:,5],fmt='ks',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)
+
+    axarr[1].errorbar([],[],fmt='ks',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2,label='Lit. Nieto-Draghi')
 
     irho0 = int(nrhomax - nrho)
+
+    for BondType in ['harmonic', 'LINCS']:
+
+        axarr[1].errorbar([],[],fmt=colors_list[BondType]+shapes_list[BondType],mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2,label='This Work, '+BondType)
         
-    for irho in range(nrho):
+        press_sim = np.loadtxt('TraPPE_N400_'+BondType+'/press_all_log') #[bar]
+        press_sim /= 10. #[MPa]
+    
+        press_sim = press_sim.reshape([nrho,int(len(press_sim)/nrho)])
+    
+        upress_sim = 1.96*np.std(press_sim,axis=1)
+        press_sim = np.mean(press_sim,axis=1)
+
+        for irho in range(nrho):
         
-        try:
-            eta_MCMC =  np.loadtxt('GK_eta_boots_rho'+str(irho+irho0)) 
-            eta_MCMC_sorted = np.sort(eta_MCMC)
-            i95 = int(0.025*len(eta_MCMC_sorted))
-            eta_MCMC_95 = eta_MCMC_sorted[i95:-i95]
-            eta_MCMC_avg = np.mean(eta_MCMC_95) #Only take average without the outliers          
-            eta_MCMC_low = eta_MCMC_avg - eta_MCMC_95[0]
-            eta_MCMC_high = eta_MCMC_95[-1] - eta_MCMC_avg
+            try:
+                eta_MCMC =  np.loadtxt('TraPPE_N400_'+BondType+'/GK_eta_boots_rho'+str(irho+irho0)) 
+                eta_MCMC_sorted = np.sort(eta_MCMC)
+                i95 = int(0.025*len(eta_MCMC_sorted))
+                eta_MCMC_95 = eta_MCMC_sorted[i95:-i95]
+                eta_MCMC_avg = np.mean(eta_MCMC_95) #Only take average without the outliers          
+                eta_MCMC_low = eta_MCMC_avg - eta_MCMC_95[0]
+                eta_MCMC_high = eta_MCMC_95[-1] - eta_MCMC_avg
             
-            axarr[0].errorbar(rho_sim[irho],np.mean(eta_MCMC),yerr=np.array([[eta_MCMC_high,eta_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)                                         
-            axarr[1].errorbar(press_sim[irho],np.mean(eta_MCMC),xerr=upress_sim[irho],yerr=np.array([[eta_MCMC_high,eta_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)                                         
+                axarr[0].errorbar(rho_sim[irho],np.mean(eta_MCMC),yerr=np.array([[eta_MCMC_high,eta_MCMC_low]]).T,fmt=colors_list[BondType]+shapes_list[BondType],mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)                                         
+                axarr[1].errorbar(press_sim[irho],np.mean(eta_MCMC),xerr=upress_sim[irho],yerr=np.array([[eta_MCMC_high,eta_MCMC_low]]).T,fmt=colors_list[BondType]+shapes_list[BondType],mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)                                         
         
-        except:
+            except:
              
-            pass
+                pass
         
     axarr[0].plot([],[],'ro',markersize=10,markeredgewidth=2,mfc='None',label='Simulation')
     axarr[0].plot(RP_rho,RP_eta_T347highP,'k-',linewidth=3,label='REFPROP')
@@ -129,7 +140,6 @@ def main():
     axarr[0].set_xlabel(r'$\rho$ (kg/m$^3$)')
     axarr[0].set_ylabel(r'$\eta$')
      
-    axarr[1].plot(RP_press,RP_eta_T347highP,'k-',linewidth=3,label='REFPROP')
     axarr[1].legend()
 
     axarr[1].set_xlabel(r'$P$ (MPa)')
