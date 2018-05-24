@@ -33,12 +33,12 @@ pme_order                = 6
 ewald_rtol               = 1e-06
 epsilon_surface          = 0
 ; Temperature coupling
-Tcoupl                   = nose-hoover
+Tcoupl                   = v-rescale
 tc_grps                  = system
 tau_t                    = 1.0
 ref_t                    = some_temperature
 ; Pressure coupling for NPT
-Pcoupl                   = Parrinello-Rahman
+Pcoupl                   = Berendsen
 tau_p                    = 1.0
 compressibility          = 4.5e-05
 ref_p                    = some_pressure
