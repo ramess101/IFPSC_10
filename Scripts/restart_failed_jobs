@@ -1,0 +1,100 @@
+j="$1"
+nRep="$2"
+output_path="$3"
+NREP_low="$4"
+NREP_high="$5"
+Compound="$6"
+Nmol="$7"
+liquid_box="$8"
+ensemble="$9"
+
+if [ "$ensemble" = NVT ] || [ "$ensemble" = nvt ]
+then
+ENSEMBLE=NVT
+ensemble=nvt
+elif [ "$ensemble" = NPT ] || [ "$ensemble" = npt ]
+then
+ENSEMBLE=NPT
+ensemble=npt
+else
+echo Provide the correct ensemble, either NVT or NPT
+exit 0
+fi
+
+pinoffset=28
+nt_eq=2
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"
+
+ndone=$(cat "$ENSEMBLE"_eq/runout | grep -c "GROMACS reminds you")
+nfailed=$(cat "$ENSEMBLE"_eq/*out | grep -c "Fatal error")
+nfailed_alt=$(cat "$ENSEMBLE"_eq/"$ensemble"_eq.log | grep -c "Fatal error")
+nfailed_alt2=$(ls -dq "$ENSEMBLE"_eq/step*.pdb 2>/dev/null | wc -l)
+
+if [ "$nfailed" -gt 0 ] || [ "$nfailed_alt" -gt 0 ] || [ "$nfailed_alt2" -gt 0 ]
+then
+
+echo "An error was found at $PWD, would you like to restart this job? Y/N. N if job is still running. Y if job actually crashed."
+read user_restart
+
+if [ "$nfailed_alt2" -gt 0 ]
+then
+rm "$ENSEMBLE"_eq/step*.pdb
+fi
+
+if [ "$user_restart" = N ] || [ "$ndone" -eq 1 ]
+then
+exit 0
+fi
+
+echo Do you want to use pinoffset = "$pinoffset" and number of threads = "$nt_eq"? Y/N
+read use_defaults
+
+if [ "$use_defaults" = N ]
+then
+
+echo "Set pinoffset"
+read pinoffset
+
+echo "How many threads for the restart equilibration"
+read nt_eq
+
+fi
+
+cp "$ENSEMBLE"_eq/runout "$ENSEMBLE"_eq/runout_fatal_error
+cp "$ENSEMBLE"_eq/gromppout "$ENSEMBLE"_eq/gromppout_fatal_error
+cp "$ENSEMBLE"_eq/"$ensemble"_eq.log "$ENSEMBLE"_eq/"$ensemble"_eq_fatal_error.log
+
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 100 -box "$liquid_box" "$liquid_box" "$liquid_box" -o "$Compound"_box.gro > insertout 2>> insertout
+
+echo Inserted molecules for restart
+
+gmx grompp -f em_l-bfgs.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_l-bfgs.tpr -maxwarn 1 > gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l-bfgs > runout 2>> runout
+#taskset -cp "$pinoffset" $! > /dev/null 2>&1 #Comment out so that not on same core as other equilibration runs
+
+echo First energy minimization for restart
+
+gmx grompp -f em_steep.mdp -c em_l-bfgs.gro -p ../../../"$Compound".top -o em_steep.tpr >> gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout2 2>> runout2
+#taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+echo Second energy minimization for restart
+
+
+cd "$ENSEMBLE"_eq || exit
+
+gmx grompp -f "$ensemble"_eq.mdp -c ../em_steep.gro -p ../../../../"$Compound".top -o "$ensemble"_eq.tpr > gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm "$ensemble"_eq > runout 2>> runout &
+taskset -cp "$pinoffset"-"$((pinoffset+nt_eq-1))" $! > /dev/null 2>&1
+
+echo Running equilibration for restart
+
+fi
+
+pinoffset=$((pinoffset+nt_eq))
+
+done # for iMCMC

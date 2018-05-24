@@ -10,8 +10,8 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=IC8H18
-Model=TraPPE
+Compound=NEOC5H12
+Model=Potoff
 Conditions_type=Saturation 
 
 #Set the number of molecules
@@ -260,29 +260,31 @@ fi
 cp "$exp_data_path"/"$Compound"_TDE_eta_sat.txt "$output_path"/TDE_eta_sat.txt
 cp "$exp_data_path"/"$Compound"_REFPROP_eta_sat.txt "$output_path"/REFPROP_eta_sat.txt
 
-### Create file and header for state point conditions
-
-echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/SaturatedSettings.txt	
+### Create file and header for state point conditions if not already created
+if [ ! -e "$output_path"/"$Conditions_type"Settings.txt ]
+then
+echo "NMol" "Length (nm)" "Temp (K)" > "$output_path"/"$Conditions_type"Settings.txt	
+fi
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 0) # Number of temperatures to run (0 4)
+for j in $(seq 2 4) # Number of temperatures to run (0 4)
 
 do
 
 ### Record the state point conditions
 
-echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/SaturatedSettings.txt
+echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/"$Conditions_type"Settings.txt
 
 nRep=0
 
-NREPS=1 #Run 20 replicates in parallel
+NREPS=20 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 0) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 2) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -438,8 +440,6 @@ cd Saturated || exit
 mkdir -p rho"$j"
 cd    rho"$j" || exit
 
-#echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/MCMC_"$iMCMC"/SaturatedSettings.txt
-
 mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || exit
 
@@ -574,9 +574,8 @@ rm ../step*.pdb
 fi
 
 gmx grompp -f nvt_eq.mdp -c ../em_steep.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
-#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -pme cpu -deffnm nvt_eq > runout 2>> runout &
-taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+taskset -cp "$pinoffset"-"$((pinoffset+nt_eq-1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_eq))
 
@@ -593,6 +592,14 @@ nit=$((nit+1))
 sleep 100s
 echo "Waiting for Saturated equilibration"
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | grep -c "GROMACS reminds you")
+nfailed=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/*out | grep -c "Fatal error")
+nfailed_alt=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/nvt_eq.log | grep -c "Fatal error")
+nfailed_alt2=$(ls -dq "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/step*.pdb 2>/dev/null | wc -l)
+if [ "$nfailed" -gt 0 ] || [ "$nfailed_alt" -gt 0 ] || [ "$nfailed_alt2" -gt 0 ]
+then
+# Find job that crashed and restart it
+bash "$scripts_path"/restart_failed_jobs "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "${liquid_box[j]}" NVT
+fi
 done
 
 ###Removed production period
@@ -613,7 +620,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
-taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+taskset -cp "$pinoffset"-"$((pinoffset+nt_vis-1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_vis))
 
@@ -713,7 +720,7 @@ done # for j (rho)
 
 cd "$output_path" || exit
 ###Create plots to compare with experimental data and correlations
-python "$scripts_path"/compare_TDE_REFPROP.py --comp "$Compound" --nrhomax $((j+1)) --"$Conditions_type"
+python "$scripts_path"/compare_TDE_REFPROP.py --comp "$Compound" --nrhomax $((j+1)) --sat
 
 exit 0
 
