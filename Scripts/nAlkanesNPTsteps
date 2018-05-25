@@ -1,0 +1,203 @@
+Compound="$1"
+Nmol="$2"
+liquid_box="$3"
+mdp_path="$4"
+BondType="$5"
+Temp="$6"
+press="$7"
+nsteps_eq="$8"
+rvdw="$9"
+NREP_low="${10}"
+NREP_high="${11}"
+output_path="${12}"
+j="${13}"
+nRep="${14}"
+
+#echo $@
+echo Pressure passed to subscript "$press"
+echo Temperature passed to subscript "$Temp"
+
+### Initialize the NPT systems with the guess box size
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit
+
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$liquid_box" "$liquid_box" "$liquid_box" -o "$Compound"_box.gro > insertout 2>> insertout
+
+mkdir -p NPT_eq
+cd NPT_eq || exit
+
+# Copy the equilibration files and edit the temperature and pressure
+
+cp "$mdp_path"/npt_eq_no_output_"$BondType".mdp npt_eq.mdp
+sed -i -e s/some_temperature/"$Temp"/ npt_eq.mdp
+sed -i -e s/some_pressure/"$press"/ npt_eq.mdp
+sed -i -e s/some_nsteps/"$nsteps_eq"/ npt_eq.mdp
+sed -i -e s/some_rvdw/"$rvdw"/ npt_eq.mdp
+
+mkdir -p NPT_prod
+cd NPT_prod || exit
+
+# Copy the production files and edit the temperature and pressure
+
+cp "$mdp_path"/npt_prod_no_output_"$BondType".mdp npt_prod.mdp
+echo "Copying from $mdp_path /npt_prod_no_output_ $BondType .mpd"  # DEBUG
+sed -i -e s/some_temperature/"$Temp"/ npt_prod.mdp
+sed -i -e s/some_pressure/"$press"/ npt_prod.mdp
+sed -i -e s/some_rvdw/"$rvdw"/ npt_prod.mdp
+
+done
+
+###First energy minimization
+
+pinoffset=0
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
+#We now use a different approach for assigning nodes
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+#taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+1))
+
+done #for iMCMC
+
+echo "Waiting for em_steep.tpr: Energy Minimization Part1"
+
+nit=0
+maxit=60000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1s
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+done
+
+###Second energy minimization
+
+pinoffset=0
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+#taskset -cp "$pinoffset" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+1))
+
+done #for iMCMC
+
+echo "Waiting for second energy minimization"
+
+nit=0
+maxit=60000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1s
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+done
+
+###NPT Equilibration period
+
+pinoffset=0
+ntomp_eq=1
+nt_eq=1
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
+then
+echo some energy minimizations might have failed for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
+rm ../step*.pdb
+fi
+
+gmx grompp -f npt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o npt_eq.tpr > gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -deffnm npt_eq > runout 2>> runout &
+#taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_eq))
+
+done #for iMCMC
+
+echo Waiting for NPT equilibration
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1 #00s UNDO
+echo Waiting for NPT equilibration
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/runout | grep -c "GROMACS reminds you")
+done
+
+###NPT Production period
+
+pinoffset=0
+ntomp_prod=1
+nt_prod=1
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+echo pinoffset = "$pinoffset"
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+gmx grompp -f npt_prod.mdp -c ../npt_eq.gro -p ../../../../../"$Compound".top -o npt_prod.tpr > gromppout 2>> gromppout
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_prod" -nb cpu -deffnm npt_prod > runout 2>> runout &
+#taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+
+pinoffset=$((pinoffset+nt_prod))
+
+done #for iMCMC
+
+
+echo Waiting for NPT production
+
+nit=0
+maxit=3000000
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod/runout | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 1 #00s UNDo
+echo Waiting for NPT production
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod/runout | grep -c "GROMACS reminds you")
+done
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || exit  #start fresh for do cycle instead of multiple "cd .."'s
+
+sed -e '1,/A V E R A G E S/d' npt_prod.log | grep -m 1 -A1 'Box-X' | tail -n 1 | awk '{print $1}' > Lbox_NPT_ave
+
+Lbox_NPT=$(<Lbox_NPT_ave)
+
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$Lbox_NPT" "$Lbox_NPT" "$Lbox_NPT" -o "$Compound"_box.gro > insertout 2>> insertout
+
+done #for iMCMC
