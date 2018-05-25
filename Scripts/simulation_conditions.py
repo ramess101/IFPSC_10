@@ -33,6 +33,19 @@ def calc_Tsat_rhol(rhol,TPT,TC,compound):
     opt = minimize(dev,Tsat_guess)
     return np.round(opt.x)
 
+def extrapolate_rho(press,rho,press_range,rho_range):
+    press_valid = press_range[np.isfinite(rho_range)]
+    rho_valid = rho_range[np.isfinite(rho_range)]
+
+    press_high = press_valid[-int(len(press_valid)/5):]
+    rho_high = rho_valid[-int(len(rho_valid)/5):]
+
+    pfit = np.polyfit(press_high,rho_high,deg=1)
+
+    rho[np.isinf(rho)] = np.polyval(pfit,press[np.isinf(rho)]) #Only extrapolate for the densities that are infinite
+
+    return rho     
+
 def create_files(Temp_sim,rhol_sim,Lbox_sim,Nmol,filepath,press_sim=[]):
 
     f = open(filepath+'Nmol','w')
@@ -124,16 +137,34 @@ def main():
             press_range_Pa = press_range*10**6 #[Pa], REFPROP requires Pa
             
             rho_range = CP.PropsSI('D','T',Tsat_sim[0],'P',press_range_Pa,'REFPROP::'+compound) #[kg/m3]
+            visc_range = CP.PropsSI('VISCOSITY','T',Tsat_sim[0],'P',press_range_Pa,'REFPROP::'+compound)
 
             press_max = np.max(press_range[np.isfinite(rho_range)]) #We do not want the points above where REFPROP provides density
-            
-            ### With the maximum pressure we repeat this process but only with nstates
+            press_max_visc = np.max(press_range[np.isfinite(visc_range)]) #The pressure max for viscosity is often different (although this depends on temperature)
+            #print(press_max,press_max_visc,RP_Pmax)
 
-            press_sim = np.trunc(np.linspace(0,press_max,nstates)) #[MPa]
+            ### With the maximum pressure we repeat this process but only with nstates
+            ### We must use press_max, not press_max_visc in this case
+
+#            press_sim = np.trunc(np.linspace(0,press_max,nstates)) #[MPa]
+#            press_sim[0] = np.max([0.1,Psat]) #First value should be either 0.1 MPa or Psat so that it is liquid
+#            press_sim_Pa = press_sim*10**6 #[Pa], REFPROP requires Pa
+
+#            rhol_sim = CP.PropsSI('D','T',Tsat_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
+
+            ### Alternatively we can try extrapolating to high pressure
+            ### Here we can use press_max_visc because we will just extrapolate rho in this case
+
+            press_sim = np.trunc(np.linspace(0,1000,nstates)) #[MPa]
             press_sim[0] = np.max([0.1,Psat]) #First value should be either 0.1 MPa or Psat so that it is liquid
+            press_sim[1] = np.min([press_sim[1],press_max_visc])
+
             press_sim_Pa = press_sim*10**6 #[Pa], REFPROP requires Pa
 
             rhol_sim = CP.PropsSI('D','T',Tsat_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
+
+            rhol_sim = extrapolate_rho(press_sim,rhol_sim,press_range,rho_range)
+
             press_sim = press_sim*10. #[bar] for Gromacs
             Lbox_sim = convert_rhol_Lbox(rhol_sim,Nmol,Mw)
             
