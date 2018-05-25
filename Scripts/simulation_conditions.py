@@ -9,7 +9,7 @@ import CoolProp.CoolProp as CP
 from scipy.optimize import minimize
 import argparse
 
-#Before running script run, "pip install pymbar, pip install CoolProp"
+#Before running script run, "pip install CoolProp"
 
 REFPROP_path='/home/ram9/REFPROP-cmake/build/' #Change this for a different system
 
@@ -24,7 +24,7 @@ compound_dic = {'Propane':'C3H8','Butane':'C4H10','Octane':'C8H18','Isobutane':'
 def convert_rhol_Lbox(rhol,Nmol,Mw):
     nrho = rhol/Mw*N_A*conv_m3tonm3 #[1/nm3]
     Vbox= Nmol / nrho #[nm3]
-    Lbox = Vbox**(1./3.)
+    Lbox = Vbox**(1./3.) #[nm]
     return Lbox
 
 def calc_Tsat_rhol(rhol,TPT,TC,compound):
@@ -125,9 +125,9 @@ def main():
         
         if args.T293highP:
             
-            Tsat_sim = np.array([293.]*nstates)
+            Temp_sim = np.array([293.]*nstates)
 
-            Psat = CP.PropsSI('P','T',Tsat_sim[0],'Q',0,'REFPROP::'+compound)/ (10**6) #[MPa]        
+            Psat = CP.PropsSI('P','T',Temp_sim[0],'Q',0,'REFPROP::'+compound)/ (10**6) #[MPa]        
 
             ### Although REFPROP provide Pmax (RP_Pmax above), this value appears to depend on the temperature.
             ### For this reason, we determine the maximum pressure independently
@@ -136,8 +136,8 @@ def main():
             press_range[0] = np.max([0.1,Psat]) #First value should be either 0.1 MPa or Psat so that it is liquid
             press_range_Pa = press_range*10**6 #[Pa], REFPROP requires Pa
             
-            rho_range = CP.PropsSI('D','T',Tsat_sim[0],'P',press_range_Pa,'REFPROP::'+compound) #[kg/m3]
-            visc_range = CP.PropsSI('VISCOSITY','T',Tsat_sim[0],'P',press_range_Pa,'REFPROP::'+compound)
+            rho_range = CP.PropsSI('D','T',Temp_sim[0],'P',press_range_Pa,'REFPROP::'+compound) #[kg/m3]
+            visc_range = CP.PropsSI('VISCOSITY','T',Temp_sim[0],'P',press_range_Pa,'REFPROP::'+compound)
 
             press_max = np.max(press_range[np.isfinite(rho_range)]) #We do not want the points above where REFPROP provides density
             press_max_visc = np.max(press_range[np.isfinite(visc_range)]) #The pressure max for viscosity is often different (although this depends on temperature)
@@ -150,7 +150,7 @@ def main():
 #            press_sim[0] = np.max([0.1,Psat]) #First value should be either 0.1 MPa or Psat so that it is liquid
 #            press_sim_Pa = press_sim*10**6 #[Pa], REFPROP requires Pa
 
-#            rhol_sim = CP.PropsSI('D','T',Tsat_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
+#            rhol_sim = CP.PropsSI('D','T',Temp_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
 
             ### Alternatively we can try extrapolating to high pressure
             ### Here we can use press_max_visc because we will just extrapolate rho in this case
@@ -161,7 +161,7 @@ def main():
 
             press_sim_Pa = press_sim*10**6 #[Pa], REFPROP requires Pa
 
-            rhol_sim = CP.PropsSI('D','T',Tsat_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
+            rhol_sim = CP.PropsSI('D','T',Temp_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
 
             rhol_sim = extrapolate_rho(press_sim,rhol_sim,press_range,rho_range)
 
@@ -170,7 +170,7 @@ def main():
             
             file_path = 'T293highP_Conditions/'+compound_dic[compound]+'_'
             
-            create_files(Tsat_sim,rhol_sim,Lbox_sim,Nmol,file_path,press_sim)
+            create_files(Temp_sim,rhol_sim,Lbox_sim,Nmol,file_path,press_sim)
 
 if __name__ == '__main__':
     '''
