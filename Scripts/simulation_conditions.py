@@ -18,6 +18,7 @@ CP.set_config_string(CP.ALTERNATIVE_REFPROP_PATH,REFPROP_path)
 ### Physical constants
 N_A = 6.0221409e23 #Avogadro's number [1/mol]
 conv_m3tonm3 = 1e-27 #[m3/nm3]
+Rg = 8.314472e-6 #[m3 MPa /K /mol]
 
 compound_dic = {'Propane':'C3H8','Butane':'C4H10','Octane':'C8H18','Isobutane':'IC4H10','Isopentane':'IC5H12','Isohexane':'IC6H14','Isooctane':'IC8H18','Neopentane':'NEOC5H12'}
 
@@ -33,6 +34,30 @@ def calc_Tsat_rhol(rhol,TPT,TC,compound):
     opt = minimize(dev,Tsat_guess)
     return np.round(opt.x)
 
+def extrapolate_Z1rho(press,rho,Temp,Mw,press_range,rho_range):
+    press_valid = press_range[np.isfinite(rho_range)]
+    rho_valid = rho_range[np.isfinite(rho_range)]
+
+    press_high = press_valid[-int(len(press_valid)/5):]
+    rho_high = rho_valid[-int(len(rho_valid)/5):]
+
+    Z_high = press_high / rho_high / Temp / Rg * Mw
+    Z1rho_high = (Z_high - 1.)/rho_high
+    
+    pfit = np.polyfit(rho_high,Z1rho_high,deg=1)
+
+    Z1rho_fit = lambda rho_fit: np.polyval(pfit,rho_fit)
+    Z_fit = lambda rho_fit: Z1rho_fit(rho_fit)*rho_fit + 1.
+    P_fit = lambda rho_fit: Z_fit(rho_fit) * rho_fit * Rg * Temp / Mw
+    P_points = press[np.isinf(rho)]
+    rho_linear = extrapolate_rho(press,rho,press_range,rho_range) 
+    rho_guess = rho_linear
+    objective_function = lambda rho: np.sum((P_points - P_fit(rho))**2)
+    rho_solve = minimize(objective_function,x0=rho_guess).x[:]
+    rho[np.isinf(rho)] = rho_solve #Only extrapolate for the densities that are infinite
+
+    return rho 
+
 def extrapolate_rho(press,rho,press_range,rho_range):
     press_valid = press_range[np.isfinite(rho_range)]
     rho_valid = rho_range[np.isfinite(rho_range)]
@@ -42,9 +67,9 @@ def extrapolate_rho(press,rho,press_range,rho_range):
 
     pfit = np.polyfit(press_high,rho_high,deg=1)
 
-    rho[np.isinf(rho)] = np.polyval(pfit,press[np.isinf(rho)]) #Only extrapolate for the densities that are infinite
-
-    return rho     
+    #rho[np.isinf(rho)] = np.polyval(pfit,press[np.isinf(rho)]) #Only extrapolate for the densities that are infinite
+    rho_fit = np.polyval(pfit,press[np.isinf(rho)])
+    return rho_fit     
 
 def create_files(Temp_sim,rhol_sim,Lbox_sim,Nmol,filepath,press_sim=[]):
 
@@ -163,7 +188,8 @@ def main():
 
             rhol_sim = CP.PropsSI('D','T',Temp_sim[0],'P',press_sim_Pa,'REFPROP::'+compound) #[kg/m3]
 
-            rhol_sim = extrapolate_rho(press_sim,rhol_sim,press_range,rho_range)
+            #rhol_sim = extrapolate_rho(press_sim,rhol_sim,press_range,rho_range) #This lead to over prediction of densities
+            rhol_sim = extrapolate_Z1rho(press_sim,rhol_sim,Temp_sim[0],Mw,press_range,rho_range)
 
             press_sim = press_sim*10. #[bar] for Gromacs
             Lbox_sim = convert_rhol_Lbox(rhol_sim,Nmol,Mw)
