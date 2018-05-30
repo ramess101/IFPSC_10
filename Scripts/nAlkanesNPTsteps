@@ -42,7 +42,6 @@ cd NPT_prod || exit
 # Copy the production files and edit the temperature and pressure
 
 cp "$mdp_path"/npt_prod_no_output_"$BondType".mdp npt_prod.mdp
-echo "Copying from $mdp_path /npt_prod_no_output_ $BondType .mpd"  # DEBUG
 sed -i -e s/some_temperature/"$Temp"/ npt_prod.mdp
 sed -i -e s/some_pressure/"$press"/ npt_prod.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ npt_prod.mdp
@@ -149,7 +148,7 @@ ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/runout | g
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
 nit=$((nit+1))
-sleep 1 #00s UNDO
+sleep 100s
 echo Waiting for NPT equilibration
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/runout | grep -c "GROMACS reminds you")
 done
@@ -184,7 +183,7 @@ ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod/r
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
 nit=$((nit+1))
-sleep 1 #00s UNDo
+sleep 100s
 echo Waiting for NPT production
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod/runout | grep -c "GROMACS reminds you")
 done
@@ -198,6 +197,7 @@ sed -e '1,/A V E R A G E S/d' npt_prod.log | grep -m 1 -A1 'Box-X' | tail -n 1 |
 
 Lbox_NPT=$(<Lbox_NPT_ave)
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$Lbox_NPT" "$Lbox_NPT" "$Lbox_NPT" -o "$Compound"_box.gro > insertout 2>> insertout
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  # move backwards
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$Lbox_NPT" "$Lbox_NPT" "$Lbox_NPT" -o "$Compound"_box.gro > insertout 2>> insertout || echo "Warning: Unsuccessful box creation based on NPT data!"
 
 done #for iMCMC

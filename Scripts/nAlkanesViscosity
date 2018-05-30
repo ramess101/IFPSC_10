@@ -2,7 +2,8 @@
 ####
 #
 #This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
-#Simulations are performed at 5 REFPROP saturation conditions
+#Simulations are performed at 5 conditions read from files
+#This script will run constant pressure prior to constant volume simulations
 #Temperatures are performed sequentially, batches of NREPS parameter sets are submitted at a time
 #Green-Kubo analysis is used after each temperature loop is completed
 #
@@ -12,23 +13,23 @@ job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
 Model=TraPPE
-Conditions_type=Near_Crit_HighP
-BondType=LINCS  #Harmonic (glexible) or LINCS (fixed)
-Temp=293
+Conditions_type=T293highP
+BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
+Temp=347
 
 #Set the number of molecules
 Nmol=400
 
 #Specify the path location
 
-scripts_path=~/IFPSC_10/Scripts
-conditions_path=~/IFPSC_10/"$Conditions_type"_Conditions  # UNDO ALL ADDITIONS OF IFPSC_10
-exp_data_path=~/IFPSC_10/TDE_REFPROP_values
-input_path=~/IFPSC_10/"$Compound"/Gromacs/Gromacs_input
-output_path=~/IFPSC_10/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+scripts_path=~Scripts
+conditions_path=~/"$Conditions_type"_Conditions
+exp_data_path=~/TDE_REFPROP_values
+input_path=~/"$Compound"/Gromacs/Gromacs_input
+output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
 
-cp "$scripts_path"/nAlkanesT293Viscosity "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+cp "$scripts_path"/nAlkanesViscosity "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
 touch "$output_path"/warnings_job_"$job_date"
 
 cd "$output_path"
@@ -63,16 +64,12 @@ done < "$conditions_path"/"$Compound"_Temp
 # Make the array the same length as the pressure
 echo Temperatures ${temps[@]} read from "$conditions_path"/"$Compound"_Temp
 else
-for ((x=0; x < ${#press[@]}; x++))  # C style loop
+for ((x=0; x < ${#press[@]}; x++))  # C style loop 
 do
 temps+=("$Temp")
 done
 echo Temperatures ${temps[@]} from default temperature used
 fi
-
-
-
-# TODO: Read in arbitray Temperatures if needed according to conditions type
 
 ###Equilibration time is different for certain compounds
 # 0.002 ps time step
@@ -80,16 +77,16 @@ fi
 if [ "$Compound" = 'C3H8' ]
 then
 
-nsteps_eq=50 #000 # 0.1 ns total  UNDO
+nsteps_eq=50000 # 0.1 ns total 
 
 elif [ "$Compound" = 'C4H10' ]
 then
 
-nsteps_eq=100 #000 # 0.2 ns total UNDO
+nsteps_eq=100000 # 0.2 ns total
 
 else
 
-nsteps_eq=50 #0000 # 1 ns total UNDO
+nsteps_eq=500000 # 1 ns total
 
 fi
 
@@ -255,7 +252,7 @@ if [ "$lam_sim" = 12.0 ]
 then
 
 echo "Using native Lennard-Jones potential"
-mdp_path=~/IFPSC_10/LennardJones  # UNDO
+mdp_path=~/LennardJones 
 #Originally I tried to have a tab_flag variable, but it was not working for tabulated because
 #using "$tab_flag" in mdrun was different than echo. Fortunately, I discovered that Gromacs
 #will just ignore the provided table if the vdwtype is cut-off instead of user.
@@ -264,7 +261,7 @@ mdp_path=~/IFPSC_10/LennardJones  # UNDO
 else
 
 echo "Using tabulated potential"
-mdp_path=~/IFPSC_10/Tabulated  # UNDO
+mdp_path=~/Tabulated 
 #This also required copying tab_it into the output_path whereas it is typically output_path/MCMC_iMCMC
 #tab_flag="-table $output_path/tab_it.xvg "
 
@@ -282,7 +279,7 @@ fi
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 4) # Number of temperatures to run (0 4)
+for j in $(seq 0 4) # Number of temperatures to run
 
 do
 
@@ -291,13 +288,13 @@ echo "$Nmol" "${liquid_box[j]}" "${temps[j]}" >> "$output_path"/"$Conditions_typ
 
 nRep=0
 
-NREPS=2 #20 #Run 20 replicates in parallel UNDO
+NREPS=20 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 0) # UNDO$(seq 0 2) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 3) #Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -419,7 +416,6 @@ sed -i -e s/some_rvdw/"$rvdw"/ nvt_vis.mdp
 done # for loop over iMCMC
 
 ### Run the NPT steps to determine the box sizes
-echo Press is "${press[j]}" and j is "$j" and temp is "${temps[j]}".
 bash "$scripts_path"/nAlkanesNPTsteps "$Compound" "$Nmol" "${liquid_box[j]}" "$mdp_path" "$BondType" "${temps[j]}" "${press[j]}" "$nsteps_eq" "$rvdw" "$NREP_low" "$NREP_high" "$output_path" "$j" "$nRep"
 
 ###First energy minimization
@@ -437,7 +433,7 @@ gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o
 #We now use a different approach for assigning nodes
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
-# taskset -cp "$pinoffset" $! > /dev/null 2>&1 UNDO
+taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
 
@@ -451,7 +447,7 @@ ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c 
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
 nit=$((nit+1))
-sleep 1s
+sleep 100s
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
 done
 
@@ -469,7 +465,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fre
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
-# taskset -cp "$pinoffset" $! > /dev/null 2>&1 UNDO
+taskset -cp "$pinoffset" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
 
@@ -491,7 +487,7 @@ done
 
 pinoffset=28
 ntomp_eq=1
-nt_eq=2
+nt_eq=2 
 
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
@@ -509,7 +505,7 @@ fi
 gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
-# taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1 UNDO
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_eq))
 
@@ -523,7 +519,7 @@ ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | g
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
 nit=$((nit+1))
-sleep 1 #00s UNDO
+sleep 100s 
 echo Waiting for "$Conditions_type" equilibration
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/runout | grep -c "GROMACS reminds you")
 done
@@ -546,7 +542,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout &
-# taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1 UNDO
+taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_vis))
 
@@ -561,7 +557,7 @@ ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/N
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
 nit=$((nit+1))
-sleep 1 #00s UNDO
+sleep 100s #00s 
 echo Waiting for "$Conditions_type" viscosities
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/runout | grep -c "GROMACS reminds you")
 done
