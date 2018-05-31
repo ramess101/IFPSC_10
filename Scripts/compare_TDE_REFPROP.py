@@ -35,7 +35,7 @@ def Lbox_to_rho(Lbox,Nsim,Mw):
     rho = 1./Vol #[kg/m3]
     return rho 
 
-Mw_list = {'C3H8':44.096,'C4H10':58.122}
+Mw_list = {'C3H8':44.096,'C4H10':58.122,'C8H18':114.23}
 
 def main():
     
@@ -69,7 +69,10 @@ def main():
 
         ### At some point saturated and high pressure should have different names here
         
-        sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
+        try:
+            sim_sat = np.loadtxt('SaturatedSettings.txt',skiprows=1)
+        except:
+            sim_sat = np.loadtxt('SaturationSettings.txt',skiprows=1)
         
         try:
             Tsat_sim = sim_sat[:,2]
@@ -172,7 +175,9 @@ def main():
                 per_error_MCMC_high = per_error_MCMC_plot[-1] - per_error_MCMC_avg 
                 
                 axarr[0,0].errorbar(rho_sim[irho],np.mean(eta_MCMC),yerr=np.array([[eta_MCMC_high,eta_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)                                         
-                axarr[1,0].errorbar(rho_sim[irho],per_error_MCMC_avg,yerr=np.array([[per_error_MCMC_high,per_error_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)
+                
+                if rho_sim[irho] < RP_rho.max():
+                    axarr[1,0].errorbar(rho_sim[irho],per_error_MCMC_avg,yerr=np.array([[per_error_MCMC_high,per_error_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)
                 
                 per_error_MCMC = (eta_MCMC-RP_eta_press_sim[irho])/RP_eta_press_sim[irho]*100.
                 per_error_MCMC_sorted = np.sort(per_error_MCMC)
@@ -183,7 +188,9 @@ def main():
                 per_error_MCMC_high = per_error_MCMC_plot[-1] - per_error_MCMC_avg 
 
                 axarr[0,1].errorbar(press_sim[irho],np.mean(eta_MCMC),xerr=upress_sim[irho],yerr=np.array([[eta_MCMC_high,eta_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)                                         
-                axarr[1,1].errorbar(press_sim[irho],per_error_MCMC_avg,xerr=upress_sim[irho],yerr=np.array([[per_error_MCMC_high,per_error_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)
+                
+                if press_sim[irho] < RP_press.max():
+                    axarr[1,1].errorbar(press_sim[irho],per_error_MCMC_avg,xerr=upress_sim[irho],yerr=np.array([[per_error_MCMC_high,per_error_MCMC_low]]).T,fmt='ro',mfc='None',markersize=10,capsize=5,solid_capstyle='butt',markeredgewidth=2)
         
         except:
              
