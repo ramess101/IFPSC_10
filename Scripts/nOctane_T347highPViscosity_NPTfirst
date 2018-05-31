@@ -38,6 +38,7 @@ cp ~/"$Conditions_type"_literature/TraPPE_Nieto "$output_path"/TraPPE_Nieto
 cd "$output_path"
 
 touch press_all_log
+touch Lbox_all
 
 ### Read the box size, that depends on number of molecules
 
@@ -625,6 +626,12 @@ cp "$output_path"/press_all_temp "$output_path"/press_all_log
 rm "$output_path"/press_all_temp
 ###
 
+### Compile the box sizes
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || exit
+
+cat "$output_path"/Lbox_all Lbox_NPT_ave > "$output_path"/Lbox_all_temp
+cp "$output_path"/Lbox_all_temp "$output_path"/Lbox_all
+rm "$output_path"/Lbox_all_temp
 
 done #for iMCMC
 

@@ -1,0 +1,36 @@
+
+Compound=C8H18
+Model=TraPPE
+Nmol=400
+Conditions_type=T347highP 
+BondType=LINCS #harmonic (flexible) or LINCS (fixed)
+
+#output_path=/home/ram9/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"
+output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType"
+
+cd "$output_path"
+
+touch Lbox_all
+
+j_start=0
+j_end=4
+
+for jrho in $(seq $j_start $j_end)
+
+do
+
+for iMCMC in $(seq 0 59)
+
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$jrho"/Rep0/NPT_eq/NPT_prod || exit
+
+cat "$output_path"/Lbox_all Lbox_NPT_ave > "$output_path"/Lbox_all_temp
+
+cp "$output_path"/Lbox_all_temp "$output_path"/Lbox_all
+
+rm "$output_path"/Lbox_all_temp
+
+done #for iMCMC
+
+done #for jrho
