@@ -73,7 +73,7 @@ def main():
 
     nrho = nrhomax #len(T_sim)
     
-    rho_sim = Lbox_to_rho(L_sim,N_sim,Mw)
+    #rho_sim = Lbox_to_rho(L_sim,N_sim,Mw)
     
     RP_T347highP_eta = np.loadtxt('REFPROP_eta_T347highP.txt',skiprows=1)
     RP_press = RP_T347highP_eta[:,1]
@@ -115,6 +115,14 @@ def main():
     
         upress_sim = 1.96*np.std(press_sim,axis=1)
         press_sim = np.mean(press_sim,axis=1)
+
+        L_sim = np.loadtxt('TraPPE_N400_'+BondType+'/Lbox_all') #[nm]
+        rho_sim = Lbox_to_rho(L_sim,N_sim[0],Mw)
+
+        rho_sim = rho_sim.reshape([nrho,int(len(rho_sim)/nrho)])      
+
+        urho_sim = 1.96*np.std(rho_sim,axis=1)
+        rho_sim = np.mean(rho_sim,axis=1)        
 
         for irho in range(nrho):
         
