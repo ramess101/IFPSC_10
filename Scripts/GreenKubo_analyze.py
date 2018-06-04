@@ -39,6 +39,7 @@ except:
 
 tcut_default = 500
 tlow_default = 2
+guess_default = [2, 0.5, 0.5, 0.1]
 
 class GreenKubo_MCMC():
     def __init__(self, ilow,ihigh,tcut=tcut_default):
@@ -987,10 +988,18 @@ class GreenKubo_SaturatedMCMC():
     def calc_eta_inf(self):
         
         GK_MCMC_avg,t_GK, w8_model = self.GK_MCMC_avg,self.t_GK,self.w8_model
-      
-        opt_fit = self.fit_eta(t_GK,GK_MCMC_avg,w8_model)
+
+### If optimization are not finding true optimal, recommend revisiting this issue        
+#        try:
+#            guess = self.opt_fit.copy()
+#            guess *= 1.5
+#        except:
+#            guess = guess_default
+        guess=guess_default
+#        print(guess)
+        opt_fit = self.fit_eta(t_GK,GK_MCMC_avg,w8_model,guess=guess)
         eta_inf = self.calc_eta_estimate(opt_fit)
-        
+#        print(opt_fit)
 #        np.savetxt('GK_eta_inf',eta_inf,fmt='%0.7f')
         
         return eta_inf, opt_fit
@@ -1015,11 +1024,11 @@ class GreenKubo_SaturatedMCMC():
         print('Cutoff time = '+str(tcut))
         return tcut
     
-    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default,tlow=tlow_default):
+    def fit_eta(self,t_data,eta_data,w8_data,tcut=tcut_default,tlow=tlow_default,guess=guess_default):
         """ Fits the viscosity data to correlation with assigned weights """
         
         if tcut == tcut_default: tcut = self.tcut
-
+       
         eta_data = eta_data[t_data<tcut]
         w8_data = w8_data[t_data<tcut]
         t_data = t_data[t_data<tcut]
@@ -1031,15 +1040,13 @@ class GreenKubo_SaturatedMCMC():
         eta_t = lambda params: self.eta_hat(t_data,params)
         
         SSE = lambda params: np.sum(((eta_t(params) - eta_data)*w8_data)**2)
-                             
-        guess = [2, 0.1, 0.5, 0.1]
         
-        bnds=((0,None),(0,None),(1e-5,None),(1e-5,None))
+        bnds=((0,None),(0,1),(1e-5,None),(1e-5,None))
                      
         opt = minimize(SSE,guess,bounds=bnds)
 
         opt_fit = opt.x                     
-    
+
         return opt_fit
     
     def calc_eta_estimate(self,opt_fit):
@@ -1107,7 +1114,7 @@ class GreenKubo_SaturatedMCMC():
             
         return eta_boots, eta_low, eta_high, opt_fit_boots, tcut_boots, b_boots
 
-    def bootstrap_eta_alt(self):
+    def bootstrap_eta_alt(self,show_plot=True):
         
         GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,irho,bopt = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.irho,self.bopt
         
@@ -1152,11 +1159,29 @@ class GreenKubo_SaturatedMCMC():
                 b_random = np.random.uniform(b_low,b_high)
                 w8_model = t_GK**(-b_random)
             
-                opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut_random)
+                opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut_random,guess=self.opt_fit)
                 eta_boots[ieta] = self.calc_eta_estimate(opt_fit)
                 
                 opt_fit_boots.append(opt_fit)
                 ieta += 1
+
+                if show_plot and (ieta % 100 == 0) and (eta_boots[ieta-1] > 1.05 * self.eta_inf or eta_boots[ieta-1] < 0.95 * self.eta_inf):
+
+                    tplot = np.linspace(0,t_GK.max(),10000)
+                    GK_plot = self.eta_hat(tplot,opt_fit)
+                
+                    fig = plt.figure(figsize=(6,6))
+        
+                    plt.plot(t_GK,eta_avg,'k-',label='Average')
+                    plt.plot(tplot,GK_plot,'b--',label='Fit')
+                    plt.plot([tcut_random,tcut_random],[0,GK_plot.max()],'g-.',label='Cut-off')
+        
+                    plt.xlabel('Time (ps)')
+                    plt.ylim(ymin=0)
+                    plt.ylabel('Viscosity (cP)')
+                    plt.legend()
+                
+                    fig.savefig('boot_plots/boot'+str(ieta)+'_rho'+str(irho)+'.pdf') 
 
         eta_boots_sorted = np.sort(np.array(eta_boots))
         
