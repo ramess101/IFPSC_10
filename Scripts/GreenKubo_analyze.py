@@ -1114,7 +1114,7 @@ class GreenKubo_SaturatedMCMC():
             
         return eta_boots, eta_low, eta_high, opt_fit_boots, tcut_boots, b_boots
 
-    def bootstrap_eta_alt(self,show_plot=True):
+    def bootstrap_eta_alt(self,show_plots=False):
         
         GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,irho,bopt = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.irho,self.bopt
         
@@ -1165,7 +1165,7 @@ class GreenKubo_SaturatedMCMC():
                 opt_fit_boots.append(opt_fit)
                 ieta += 1
 
-                if show_plot and (ieta % 100 == 0) and (eta_boots[ieta-1] > 1.05 * self.eta_inf or eta_boots[ieta-1] < 0.95 * self.eta_inf):
+                if show_plots and (ieta % 100 == 0) and (eta_boots[ieta-1] > 1.05 * self.eta_inf or eta_boots[ieta-1] < 0.95 * self.eta_inf):
 
                     tplot = np.linspace(0,t_GK.max(),10000)
                     GK_plot = self.eta_hat(tplot,opt_fit)
