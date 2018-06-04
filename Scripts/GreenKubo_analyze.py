@@ -818,12 +818,13 @@ class GreenKubo_SaturatedMCMC():
         self.irho = irho
         self.nMCMC = (ihigh-ilow+1)
         self.nReps = nReps
-        self.tcut = tcut
+        self.tcut = tcut #This is not used anywhere and should be removed eventually
         self.fpath_all = self.gen_fpath_all()  
         assert self.nMCMC*self.nReps == len(self.fpath_all), 'Number of MCMC/replicates is incorrect'
         self.GK_MCMC = self.gen_GK_MCMC()
         self.nTime = len(self.GK_MCMC[0].t_GK)    
-        self.GK_MCMC_all, self.t_GK, self.sig_GK_MCMC = self.compile_GK_MCMC() 
+        self.GK_MCMC_all, self.t_GK, self.sig_GK_MCMC = self.compile_GK_MCMC()
+        self.tcut = self.t_GK.max() #Use maximum time as initial tcut value
         self.w8_model, self.Aopt,self.bopt = self.w8_hat(fit=True)                
         self.GK_MCMC_avg = self.GK_time_avg()
         self.eta_inf, self.opt_fit = self.calc_eta_inf()
