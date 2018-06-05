@@ -10,8 +10,8 @@
 ####
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C4H10
-Model=TraPPE
+Compound=IC6H14
+Model=Potoff
 Conditions_type=Saturation 
 
 #Set the number of molecules
@@ -46,16 +46,16 @@ done < "$conditions_path"/"$Compound"_liquid_box_N"$Nmol"
 if [ "$Compound" = 'C3H8' ]
 then
 
-nsteps_eq=5000 #0 # 0.1 ns total
+nsteps_eq=50000 # 0.1 ns total
 
 elif [ "$Compound" = 'C4H10' ]
 then
 
-nsteps_eq=10000 #000 # 0.2 ns total
+nsteps_eq=100000 # 0.2 ns total
 
 else
 
-nsteps_eq=5000 #00 # 1 ns total
+nsteps_eq=500000 # 1 ns total
 
 fi
 
