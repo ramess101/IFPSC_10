@@ -7,6 +7,14 @@
 # the while loop control.
 
 # Assemble the parameters required for the run and potential restart
+clean() {   # Make it so that everything is killed on an interrupt
+local pids=$(jobs -pr)
+echo "Kill on exit $pids"
+[ -n "$pids" ] && kill $pids
+exit 1
+}
+trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call clean for any such signal
+
 table="$1"
 nt="$2"
 nb="$3"
