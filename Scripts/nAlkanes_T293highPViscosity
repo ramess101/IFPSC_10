@@ -11,7 +11,7 @@
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
-Model=Potoff
+Model=TAMie
 Conditions_type=T293highP 
 
 #Set the number of molecules
@@ -558,7 +558,7 @@ echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_o
 done #for iMCMC
 
 nit=0
-maxit=60 #Don't want this too high, so it will finish eventually
+maxit=6000 #Don't want this too high, so it will finish eventually
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
@@ -627,7 +627,7 @@ done
 
 cd "$output_path" || exit
 ###Create plots to compare with experimental data and correlations
-python "$scripts_path"/compare_TDE_REFPROP_test.py --comp "$Compound" --nrhomax $((j+1)) --"$Conditions_type"
+python "$scripts_path"/compare_TDE_REFPROP.py --comp "$Compound" --nrhomax $((j+1)) --"$Conditions_type"
 
 exit 0
 
