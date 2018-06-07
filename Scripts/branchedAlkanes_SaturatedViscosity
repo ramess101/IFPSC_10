@@ -19,7 +19,7 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=IC6H14
-Model=TraPPE
+Model=Potoff
 Conditions_type=Saturation 
 
 #Set the number of molecules
@@ -63,7 +63,7 @@ nsteps_eq=100000 # 0.2 ns total
 
 else
 
-nsteps_eq=500000 # 1 ns total 
+nsteps_eq=500 #000 # 1 ns total 
 
 fi
 
@@ -276,7 +276,7 @@ fi
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 4) # Number of temperatures to run (0 4)
+for j in $(seq 0 0) # Number of temperatures to run (0 4)
 
 do
 
@@ -286,13 +286,13 @@ echo "$Nmol" "${liquid_box[j]}" "${Tsat[j]}" >> "$output_path"/"$Conditions_type
 
 nRep=0
 
-NREPS=20  # Run 20 replicates in parallel
+NREPS=1  # Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 2)  # Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 0)  # Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -309,134 +309,7 @@ mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || exit
 
 #Create files with force field parameters
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3_sim" --sigma "$sigCH3_sim"
-
-C6_CH3_sim=$(<C6_it)
-Clam_CH3_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2_sim" --sigma "$sigCH2_sim"
-
-C6_CH2_sim=$(<C6_it)
-Clam_CH2_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH_sim" --sigma "$sigCH_sim"
-
-C6_CH_sim=$(<C6_it)
-Clam_CH_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsC_sim" --sigma "$sigC_sim"
-
-C6_C_sim=$(<C6_it)
-Clam_C_sim=$(<Clam_it)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH2_sim"
-
-epsCH3CH2_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsCH_sim"
-
-epsCH3CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH3_sim" "$epsC_sim"
-
-epsCH3C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsCH_sim"
-
-epsCH2CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH2_sim" "$epsC_sim"
-
-epsCH2C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c geometric -x "$epsCH_sim" "$epsC_sim"
-
-epsCHC_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH2_sim"
-
-sigCH3CH2_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigCH_sim"
-
-sigCH3CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH3_sim" "$sigC_sim"
-
-sigCH3C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigCH_sim"
-
-sigCH2CH_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH2_sim" "$sigC_sim"
-
-sigCH2C_sim=$(<comb_rule)
-
-python "$scripts_path"/comb_rule.py -c arithmetic -x "$sigCH_sim" "$sigC_sim"
-
-sigCHC_sim=$(<comb_rule)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH2_sim" --sigma "$sigCH3CH2_sim"
-
-C6_CH3CH2_sim=$(<C6_it)
-Clam_CH3CH2_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3CH_sim" --sigma "$sigCH3CH_sim"
-
-C6_CH3CH_sim=$(<C6_it)
-Clam_CH3CH_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3C_sim" --sigma "$sigCH3C_sim"
-
-C6_CH3C_sim=$(<C6_it)
-Clam_CH3C_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2CH_sim" --sigma "$sigCH2CH_sim"
-
-C6_CH2CH_sim=$(<C6_it)
-Clam_CH2CH_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH2C_sim" --sigma "$sigCH2C_sim"
-
-C6_CH2C_sim=$(<C6_it)
-Clam_CH2C_sim=$(<Clam_it)
-
-python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCHC_sim" --sigma "$sigCHC_sim"
-
-C6_CHC_sim=$(<C6_it)
-Clam_CHC_sim=$(<Clam_it)
-
-echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH_sim" "$sigCH_sim" "$lam_sim" "$epsC_sim" "$sigC_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" "$epsCH3CH_sim" "$sigCH3CH_sim" "$lam_sim" "$epsCH3C_sim" "$sigCH3C_sim" "$lam_sim" "$epsCH2CH_sim" "$sigCH2CH_sim" "$lam_sim" "$epsCH2C_sim" "$sigCH2C_sim" "$lam_sim" "$epsCHC_sim" "$sigCHC_sim" "$lam_sim" > eps_sig_lam_ref
-echo "$bondlength_CH3" > bondlength_CH3
-
-cp "$input_path"/"$Compound"_temp.top "$Compound".top 
-cp "$input_path"/"$Compound".gro "$Compound".gro 
-sed -i -e s/some_C6_CH3/"$C6_CH3_sim"/ "$Compound".top
-sed -i -e s/some_Clam_CH3/"$Clam_CH3_sim"/ "$Compound".top
-sed -i -e s/some_C6_CH2/"$C6_CH2_sim"/ "$Compound".top
-sed -i -e s/some_Clam_CH2/"$Clam_CH2_sim"/ "$Compound".top
-sed -i -e s/some_C6_CH/"$C6_CH_sim"/ "$Compound".top
-sed -i -e s/some_Clam_CH/"$Clam_CH_sim"/ "$Compound".top
-sed -i -e s/some_C6_C/"$C6_C_sim"/ "$Compound".top
-sed -i -e s/some_Clam_C/"$Clam_C_sim"/ "$Compound".top
-
-sed -i -e s/some_C6_combCH3CH2/"$C6_CH3CH2_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH3CH2/"$Clam_CH3CH2_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH3CH/"$C6_CH3CH_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH3CH/"$Clam_CH3CH_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH3C/"$C6_CH3C_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH3C/"$Clam_CH3C_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH2CH/"$C6_CH2CH_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH2CH/"$Clam_CH2CH_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCH2C/"$C6_CH2C_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCH2C/"$Clam_CH2C_sim"/ "$Compound".top
-sed -i -e s/some_C6_combCHC/"$C6_CHC_sim"/ "$Compound".top
-sed -i -e s/some_Clam_combCHC/"$Clam_CHC_sim"/ "$Compound".top
-
-sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
-sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
+"$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol"
 
 ### Initialize the folders, copy files, and insert variables
 

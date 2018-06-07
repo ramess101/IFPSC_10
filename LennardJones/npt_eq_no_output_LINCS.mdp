@@ -1,5 +1,5 @@
 ; Run control
-integrator               = md-vv       ; Velocity Verlet
+integrator               = md       ; leapfrog
 tinit                    = 0
 dt                       = 0.002
 nsteps                   = some_nsteps    ; 100 ps
@@ -49,4 +49,3 @@ lincs-order              = 8
 ; No velocities during EM 
 gen_vel                  = yes
 gen-temp                 = some_temperature
-gen-seed                 = 173529
