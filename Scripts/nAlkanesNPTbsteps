@@ -150,7 +150,6 @@ rm ../step*.pdb
 fi
 
 gmx grompp -f npt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o npt_eq.tpr > gromppout 2>> gromppout
-gmx mdrun -nt "$nt_eq" -nb cpu -pme cpu -deffnm npt_eq > runout 2>> runout &
 # This equilibration is now being performed inside an auto-restart script
 # the third argument (table path) is ignored in the script but left in place for historical reasons
 "$scripts_path"/run_single_buckingham.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu npt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$liquid_box" npt &
@@ -188,7 +187,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || 
 
 gmx grompp -f npt_prod.mdp -c ../npt_eq.gro -p ../../../../../"$Compound".top -o npt_prod.tpr > gromppout 2>> gromppout
 gmx mdrun -nt "$nt_prod" -nb cpu -pme cpu -deffnm npt_prod > runout 2>> runout &
-taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+taskset -cp "$pinoffset" "$((pinoffset+1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_prod))
 

@@ -1,3 +1,12 @@
+#!/bin/bash
+clean() {   # Make it so everything is killed on an interrupt
+local pids=$(jobs -pr)
+echo "Kill on exit: $pids"
+[ -n "$pids" ] && kill $pids
+exit 1
+}
+trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
+
 Compound="$1"
 Nmol="$2"
 liquid_box="$3"
@@ -12,10 +21,12 @@ NREP_high="${11}"
 output_path="${12}"
 j="${13}"
 nRep="${14}"
+scripts_path="${15}"
 
 #echo $@
 echo Pressure passed to subscript "$press"
 echo Temperature passed to subscript "$Temp"
+echo Box passed to subscript "$liquid_box"
 
 ### Initialize the NPT systems with the guess box size
 for iMCMC in $(seq $NREP_low $NREP_high)
@@ -62,8 +73,11 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fre
 gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
 #We now use a different approach for assigning nodes
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+# UNDO -nt = 1
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
-#taskset -cp "$pinoffset" $! > /dev/null 2>&1
+cur_pid=$!
+min_1_pids[${iMCMC}]=$cur_pid  # Record the PID from that process
+#taskset -cp "$pinoffset" $cur_pid > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
 
@@ -71,14 +85,9 @@ done #for iMCMC
 
 echo "Waiting for em_steep.tpr: Energy Minimization Part1"
 
-nit=0
-maxit=60000
-ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
-while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+for pid in ${min_1_pids[*]}   # For all PID's, wait for completion
 do
-nit=$((nit+1))
-sleep 1s
-ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout | grep -c "GROMACS reminds you")
+wait $pid
 done
 
 ###Second energy minimization
@@ -94,8 +103,11 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fre
 
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
+# UNDO -nt = 4
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
-#taskset -cp "$pinoffset" $! > /dev/null 2>&1
+cur_pid=$!
+min_2_pids[${iMCMC}]=$cur_pid
+#taskset -cp "$pinoffset" $cur_pid > /dev/null 2>&1
 
 pinoffset=$((pinoffset+1))
 
@@ -103,21 +115,16 @@ done #for iMCMC
 
 echo "Waiting for second energy minimization"
 
-nit=0
-maxit=60000
-ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
-while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+for pid in ${min_2_pids[*]}  # Wait until all of these minimizations are completed
 do
-nit=$((nit+1))
-sleep 1s
-ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/runout2 | grep -c "GROMACS reminds you")
+wait $pid
 done
 
 ###NPT Equilibration period
 
 pinoffset=0
 ntomp_eq=1
-nt_eq=1
+nt_eq=1  # UNDO = 1
 
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
@@ -133,8 +140,7 @@ rm ../step*.pdb
 fi
 
 gmx grompp -f npt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o npt_eq.tpr > gromppout 2>> gromppout
-gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_eq" -nb cpu -deffnm npt_eq > runout 2>> runout &
-#taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+"$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu npt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$liquid_box" npt &
 
 pinoffset=$((pinoffset+nt_eq))
 
@@ -157,7 +163,7 @@ done
 
 pinoffset=0
 ntomp_prod=1
-nt_prod=1
+nt_prod=1  # UNDO = 1
 
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
