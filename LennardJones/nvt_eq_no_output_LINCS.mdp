@@ -49,4 +49,3 @@ lincs-order              = 8
 ; No velocities during EM 
 gen_vel                  = yes
 gen-temp                 = some_temperature
-gen-seed                 = 173529
