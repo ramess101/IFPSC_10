@@ -24,7 +24,7 @@ pinoffset="$6"
 j="$7"
 nRep="$8"
 output_path="${9}"
-NREP_low="${10}"
+NREP_low="${10}"  # Present for historiacal reasons
 NREP_high="${11}"
 Compound="${12}"
 Nmol="${13}"
@@ -33,7 +33,7 @@ ensemble="${15}"
 
 # Run given gmx command- if the command fails, the program will not exit but will 
 # rather move on to the restart phase
-gmx mdrun -table "$table" -nt "$nt" -nb "$nb" -pme "$pme" -deffnm "$deffnm" > runout 2>> runout &
+gmx mdrun -table "$table" -nt "$nt" -nb "$nb" -pme $pme -deffnm "$deffnm" > runout 2>> runout &  # UNDO pme
 pid=$!  # Record PID of launched process
 taskset -cp "$pinoffset"-"$((pinoffset+nt-1))" $pid > /dev/null 2>&1
 
@@ -75,24 +75,29 @@ echo Inserted molecules for restart
 
 # Now, run the first energy minimization
 gmx grompp -f em_l-bfgs.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_l-bfgs.tpr -maxwarn 1 > gromppout 2>> gromppout
-gmx mdrun -table "$table" -nt 1 -nb "$nb" -pme "$pme" -deffnm em_l-bfgs > runout 2>> runout || echo First energy minimization failed.
-# Taskset not used in anticipation of where other creatures are currently running. 
+gmx mdrun -table "$table" -nt 1 -nb "$nb" -pme $pme -deffnm em_l-bfgs > runout 2>> runout &
+pid=$!
+taskset -cp "$pinoffset" $pid > /dev/null 2>&1
 
-echo Finished first energy minimization run for restart.
+wait $pid || echo First energy minimization failed.  # Report on status
+echo Finished first energy minimization attempt for restart.
 
 # Run the second energy minimization
 gmx grompp -f em_steep.mdp -c em_l-bfgs.gro -p ../../../"$Compound".top -o em_steep.tpr >> gromppout 2>> gromppout
-gmx mdrun -table "$table" -nt 1 -nb "$nb" -pme "$pme" -deffnm em_steep > runout2 2>> runout2 || echo Second energy minimization failed.
+gmx mdrun -table "$table" -nt 1 -nb "$nb" -pme $pme -deffnm em_steep > runout2 2>> runout2
+pid=$!
+taskset -cp "$pinoffset" $pid > /dev/null 2>&1
 
-echo Finished second energy minimization run for restart.
+wait $pid || echo Second energy minimization failed.
+echo Finished second energy minimization attempt for restart.
 
 cd "$ENSEMBLE"_eq || exit 1  # Transfer into subdirectory to complete run
 
 # Do the actual restart run. Be more tolerant of warnings from grompp this time around.
 gmx grompp -f "$ensemble"_eq.mdp -c ../em_steep.gro -p ../../../../"$Compound".top -o "$ensemble"_eq.tpr -maxwarn 5 > gromppout 2>> gromppout
-gmx mdrun -table "$table" -nt "$nt" -nb "$nb" -pme "$pme" -deffnm "$ensemble"_eq > runout 2>> runout &
+gmx mdrun -table "$table" -nt "$nt" -nb "$nb" -pme $pme -deffnm "$ensemble"_eq > runout 2>> runout &
 pid=$!
-taskset -cp "$pinoffset"-"$((pinoffset+nt_eq-1))" $pid > /dev/null 2>&1
+taskset -cp "$pinoffset"-"$((pinoffset+nt-1))" $pid > /dev/null 2>&1
 
 echo Restarted "$ensemble" run from table "$table".
 

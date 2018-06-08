@@ -95,7 +95,7 @@ cd "$ENSEMBLE"_eq || exit 1  # Transfer into subdirectory to complete run
 gmx grompp -f "$ensemble"_eq.mdp -c ../em_steep.gro -p ../../../../"$Compound".top -o "$ensemble"_eq.tpr -maxwarn 5 > gromppout 2>> gromppout
 gmx mdrun -nt "$nt" -nb "$nb" -pme "$pme" -deffnm "$ensemble"_eq > runout 2>> runout & 
 pid=$!
-taskset -cp "$pinoffset"-"$((pinoffset+nt_eq-1))" $pid > /dev/null 2>&1
+taskset -cp "$pinoffset"-"$((pinoffset+nt-1))" $pid > /dev/null 2>&1
 
 echo Restarted "$ensemble" run .
 

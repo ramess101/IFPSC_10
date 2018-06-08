@@ -187,7 +187,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || 
 
 gmx grompp -f npt_prod.mdp -c ../npt_eq.gro -p ../../../../../"$Compound".top -o npt_prod.tpr > gromppout 2>> gromppout
 gmx mdrun -nt "$nt_prod" -nb cpu -pme cpu -deffnm npt_prod > runout 2>> runout &
-taskset -cp "$pinoffset" "$((pinoffset+1))" $! > /dev/null 2>&1
+taskset -cp "$pinoffset"-"$((pinoffset+nt_prod))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_prod))
 
