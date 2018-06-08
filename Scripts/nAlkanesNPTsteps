@@ -2,7 +2,7 @@
 # Despite the name, this should work for all the alkanes.
 clean() {   # Make it so everything is killed on an interrupt
 local pids=$(jobs -pr)
-echo "Kill on exit: $pids"
+echo "On exit sending kill signal to: $pids"
 [ -n "$pids" ] && kill $pids
 exit 1
 }
@@ -26,6 +26,8 @@ scripts_path="${15}"
 pin0="${16}"
 nt_eq="${17}"
 nt_vis="${18}"
+prod_steps="${19}"
+
 
 
 #echo $@
@@ -60,6 +62,7 @@ cd NPT_prod || exit
 cp "$mdp_path"/npt_prod_no_output_"$BondType".mdp npt_prod.mdp
 sed -i -e s/some_temperature/"$Temp"/ npt_prod.mdp
 sed -i -e s/some_pressure/"$press"/ npt_prod.mdp
+sed -i -e s/some_nsteps/"$prod_steps"/ npt_prod.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ npt_prod.mdp
 
 done

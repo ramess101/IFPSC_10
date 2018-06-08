@@ -9,7 +9,7 @@
 # Assemble the parameters required for the run and potential restart
 clean() {   # Make it so that everything is killed on an interrupt
 local pids=$(jobs -pr)
-echo "Kill on exit $pids"
+echo "On exit sending kill signal to: $pids"
 [ -n "$pids" ] && kill $pids
 exit 1
 }

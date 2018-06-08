@@ -10,7 +10,7 @@
 ####
 clean() {   # Make it so everything is killed on an interrupt
 local pids=$(jobs -pr)
-echo "Kill on exit: $pids"
+echo "On exit sending kill signal to: $pids"
 [ -n "$pids" ] && kill $pids
 exit 1
 }
@@ -18,20 +18,29 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=IC4H10
+Compound=C4H10
 Model=TraPPE
 Conditions_type=T293highP
-BondType=LINCS  #Harmonic (glexible) or LINCS (fixed)
+BondType=harmonic  #Harmonic (glexible) or LINCS (fixed)
 Temp=293
-jlim=5  # number of condition sets to run
-batches=3  # Number of batches to run
-NREPS=20 #Run NREPS replicates in parallel/# in a batch
+jlim=2  # number of condition sets to run
+batches=1  # Number of batches to run
+NREPS=2 #Run NREPS replicates in parallel/# in a batch
 pin0=28  # Default pinoffset
-nt_eq=2  # Thread number during equilibration
-nt_vis=2  # This thread number will serve in production and viscosity runs
-
+nt_eq=1  # Thread number during equilibration
+nt_vis=1  # This thread number will serve in production and viscosity runs
+NPT=YES  # YES indicates NPT runs should be carried out prior to NVT runs
 #Set the number of molecules
 Nmol=400
+
+# Runtiming control: override default runtimes=YES, otherwise use NO
+OVERRIDE_STEPS=YES
+# If OVERRIDE_STEPS=YES, arrays must be of length j 
+# indicating how many equilibration and production steps,
+# respectively, to perform for each j
+equil_steps=(100 500 500 500 500)
+prod_steps=(500 100 500 500 500)
+
 
 #Specify the path location
 
@@ -41,8 +50,10 @@ exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
 output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 
-
-cp "$scripts_path"/AlkanesViscosity.sh "$output_path"/"$Compound"_job_"$job_date" #Keep track of what jobs have been submitted
+jobfile="$output_path"/"$Compound"_job_"$job_date" 
+cp "$scripts_path"/AlkanesViscosity.sh "$jobfile" #Keep track of what jobs have been submitted
+cat "$scripts_path"/nAlkanesNPTsteps >> "$jobfile"  # Inellegant append
+cat "$scripts_path"/run_single.sh >> "$jobfile"  # Another inellegant append
 touch "$output_path"/warnings_job_"$job_date"
 
 cd "$output_path"
@@ -100,9 +111,25 @@ nsteps_eq=100000 # 0.2 ns total
 
 else
 
-nsteps_eq=500 #000 # 1 ns total
+nsteps_eq=500000 # 1 ns total
 
 fi
+
+# We're going to ignore normal step sizes
+if [ "$OVERRIDE_STEPS" = YES ]
+then
+echo Overriding step numbers using equil=${equil_steps[*]}, prod=${prod_steps[*]}
+# Use predefined step sizes
+else
+for ((x=0; x < jlim; x++))
+do
+equil_steps[$x]=$nsteps_eq
+prod_steps[$x]=500000
+echo Step numbers : equil=${equil_steps[*]}, prod=${prod_steps[*]}
+done
+fi
+
+
 
 ###Cut-off distance is different for some force fields
 if [ "$Model" = 'Potoff' ]
@@ -266,7 +293,7 @@ if [ "$lam_sim" = 12.0 ]
 then
 
 echo "Using native Lennard-Jones potential"
-mdp_path=~/LennardJones
+mdp_path=~/LennardJonesVar
 #Originally I tried to have a tab_flag variable, but it was not working for tabulated because
 #using "$tab_flag" in mdrun was different than echo. Fortunately, I discovered that Gromacs
 #will just ignore the provided table if the vdwtype is cut-off instead of user.
@@ -295,7 +322,7 @@ fi
 jlim=$((jlim - 1))
 batches=$((batches - 1))  # Limits for 0 indexed loops later
 
-for j in $(seq 0 $jlim) # Number of temperatures to run
+for j in $(seq 0 $jlim) # Number of conditions to run
 
 do
 
@@ -371,7 +398,7 @@ cd NVT_eq || exit
 
 cp "$mdp_path"/nvt_eq_no_output_"$BondType".mdp nvt_eq.mdp
 sed -i -e s/some_temperature/"${temps[j]}"/ nvt_eq.mdp
-sed -i -e s/some_nsteps/"$nsteps_eq"/ nvt_eq.mdp
+sed -i -e s/some_nsteps/"${equil_steps[j]}"/ nvt_eq.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_eq.mdp
 
 # Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
@@ -388,12 +415,17 @@ cd NVT_vis || exit
 
 cp "$mdp_path"/nvt_vis_no_xv_"$BondType".mdp nvt_vis.mdp
 sed -i -e s/some_temperature/"${temps[j]}"/ nvt_vis.mdp
+sed -i -e s/some_nsteps/"${prod_steps[j]}"/ nvt_vis.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_vis.mdp
 
 done # for loop over iMCMC
 
 ### Run the NPT steps to determine the box sizes
-bash "$scripts_path"/nAlkanesNPTsteps "$Compound" "$Nmol" "${liquid_box[j]}" "$mdp_path" "$BondType" "${temps[j]}" "${press[j]}" "$nsteps_eq" "$rvdw" "$NREP_low" "$NREP_high" "$output_path" "$j" "$nRep" "$scripts_path" "$pin0" "$nt_eq" "$nt_vis"
+# Skip this if NPT != YES
+if [ "$NPT" = "YES" ]
+then
+bash "$scripts_path"/nAlkanesNPTsteps "$Compound" "$Nmol" "${liquid_box[j]}" "$mdp_path" "$BondType" "${temps[j]}" "${press[j]}" "${equil_steps[j]}" "$rvdw" "$NREP_low" "$NREP_high" "$output_path" "$j" "$nRep" "$scripts_path" "$pin0" "$nt_eq" "$nt_vis" "${prod_steps[j]}"
+fi
 
 ###First energy minimization
 
@@ -473,9 +505,13 @@ fi
 
 gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_eq" -nb cpu -deffnm nvt_eq > runout 2>> runout &
-Lbox_NPT=$(<../NPT_eq/NPT_prod/Lbox_NPT_ave)
+Tempbox=${liquid_box[j]}  # This is the default for no NPT
+if [ $NPT = YES ]
+then
+Tempbox=$(<../NPT_eq/NPT_prod/Lbox_NPT_ave)  # This is the default for NPT
+fi
 # Pass the proper box size to the subscript in case it needs to restart it
-"$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$Lbox_NPT" nvt &
+"$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$Tempbox" nvt &
 
 pinoffset=$((pinoffset+nt_eq))
 
