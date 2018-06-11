@@ -1,0 +1,2 @@
+T(K) eta (cP) Uncertainty (cP)
+293.138 0.000638 5.00E-06

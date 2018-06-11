@@ -14,11 +14,11 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C8H18
+Compound=C4H10
 Model=Buckingham
-Conditions_type=T347highP
+Conditions_type=T293highP
 BondType=LINCS  #Harmonic (glexible) or LINCS (fixed)
-Temp=347
+Temp=273
 
 #Set the number of molecules
 Nmol=400
@@ -80,16 +80,16 @@ fi
 if [ "$Compound" = 'C3H8' ]
 then
 
-nsteps_eq=50000 # 0.1 ns total 
+nsteps_eq=500 #00 # 0.1 ns total 
 
 elif [ "$Compound" = 'C4H10' ]
 then
 
-nsteps_eq=100000 # 0.2 ns total
+nsteps_eq=100 #000 # 0.2 ns total
 
 else
 
-nsteps_eq=500000 # 1 ns total
+nsteps_eq=500 #000 # 1 ns total
 
 fi
 
@@ -97,7 +97,7 @@ mdp_path=~/Buckingham
 
 ### Loop through temperatures and densities		
 
-for j in $(seq 0 4) # Number of temperatures to run (0 4)
+for j in $(seq 0 0) #4) # Number of temperatures to run (0 4)
 
 do
 
@@ -106,13 +106,13 @@ echo "$Nmol" "${liquid_box[j]}" "${temps[j]}" >> "$output_path"/"$Conditions_typ
 
 nRep=0
 
-NREPS=20 #Run 20 replicates in parallel
+NREPS=2 #20 #Run 20 replicates in parallel
 NREP_low=0
 NREP_high=$((NREPS-1))
 
 ####
 
-for iRep in $(seq 0 2) # Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+for iRep in $(seq 0 0) #2) # Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
 
 do
 
@@ -259,9 +259,8 @@ rm ../step*.pdb
 fi
 
 gmx grompp -f nvt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o nvt_eq.tpr > gromppout 2>> gromppout
-# Run an NPT run with restart.
-"$scripts_path"/run_single_buckingham.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "${liquid_box[j]}" npt &
-taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+# Run an NVT run with restart.
+"$scripts_path"/run_single_buckingham.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "${liquid_box[j]}" nvt &
 
 pinoffset=$((pinoffset+nt_eq))
 
@@ -294,7 +293,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 
 gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
 gmx mdrun -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
-taskset -cp "$pinoffset","$((pinoffset+1))" $! > /dev/null 2>&1
+taskset -cp "$pinoffset"-"$((pinoffset+nt_vis-1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_vis))
 

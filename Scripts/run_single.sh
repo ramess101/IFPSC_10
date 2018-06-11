@@ -6,6 +6,13 @@
 # This will attempt a maximum number of restarts as specified in
 # the while loop control.
 
+# Gives a more informative error when something goes wrong
+# with the script.
+error_report() {
+echo "Error $1 on j $2, iMCMC $3, stage $4"
+exit 1
+}
+
 # Assemble the parameters required for the run and potential restart
 clean() {   # Make it so that everything is killed on an interrupt
 local pids=$(jobs -pr)
@@ -40,7 +47,7 @@ taskset -cp "$pinoffset"-"$((pinoffset+nt-1))" $pid > /dev/null 2>&1
 wait $pid && exit 0 # Wait until the process is finished; exit if job is successful
 
 # Otherwise, the job has failed.
-cd .. || exit 1  # Backup to the proper location to restart
+cd .. || error_report "Unable to change directory to .. for restart" "$j" "?" "$ensemble"   # Backup to the proper location to restart
 # Necessary for restart
 if [ "$ensemble" = NVT ] || [ "$ensemble" = nvt ]
 then
@@ -91,7 +98,7 @@ taskset -cp "$pinoffset" $pid > /dev/null 2>&1
 wait $pid || echo Second energy minimization failed.
 echo Finished second energy minimization attempt for restart.
 
-cd "$ENSEMBLE"_eq || exit 1  # Transfer into subdirectory to complete run
+cd "$ENSEMBLE"_eq || error_report "Unable to change directory to $ENSEMBLE_eq for restart" "$j" "?" "$ensemble"   # Transfer into subdirectory to complete run
 
 # Do the actual restart run. Be more tolerant of warnings from grompp this time around.
 gmx grompp -f "$ensemble"_eq.mdp -c ../em_steep.gro -p ../../../../"$Compound".top -o "$ensemble"_eq.tpr -maxwarn 5 > gromppout 2>> gromppout
@@ -103,7 +110,7 @@ echo Restarted "$ensemble" run from table "$table".
 
 wait $pid && exit 0  # GMX ran if the && statement is executed. Exit.
 
-cd .. || exit 1  # Back off again to repeat calculations.
+cd .. || error_report "Unable to change directory to .. for restart" "$j" "?" "$ensemble"  # Back off again to repeat calculations.
 
 done
 

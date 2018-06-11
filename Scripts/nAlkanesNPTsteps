@@ -1,5 +1,14 @@
 #!/bin/bash
 # Despite the name, this should work for all the alkanes.
+# This is a helper script to handle the NPT stages.
+
+# Gives a more informative error when something goes wrong
+# with the script.
+error_report() {
+echo "Error $1 on j $2, iMCMC $3, stage $4"
+exit 1
+}
+
 clean() {   # Make it so everything is killed on an interrupt
 local pids=$(jobs -pr)
 echo "On exit sending kill signal to: $pids"
@@ -39,12 +48,12 @@ echo Box passed to subscript "$liquid_box"
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Failure to change to ouput path" "$j" "$iMCMC" "NPT"
 
 gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$liquid_box" "$liquid_box" "$liquid_box" -o "$Compound"_box.gro > insertout 2>> insertout
 
 mkdir -p NPT_eq
-cd NPT_eq || exit
+cd NPT_eq || error_report "Failure to change to NPT_eq directory" "$j" "$iMCMC" "NPT"
 
 # Copy the equilibration files and edit the temperature and pressure
 
@@ -55,7 +64,7 @@ sed -i -e s/some_nsteps/"$nsteps_eq"/ npt_eq.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ npt_eq.mdp
 
 mkdir -p NPT_prod
-cd NPT_prod || exit
+cd NPT_prod || error_report "Failure to switch to NPT_prod" "$j" "$iMCMC" "NPT"
 
 # Copy the production files and edit the temperature and pressure
 
@@ -76,7 +85,7 @@ do
 
 echo pinoffset = "$pinoffset"
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Failure to change to Rep$nRep" "$j" "$iMCMC" "NPT"  #start fresh for do cycle instead of multiple "cd .."'s
 
 gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
 #We now use a different approach for assigning nodes
@@ -106,7 +115,7 @@ do
 
 echo pinoffset = "$pinoffset"
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  #start fresh for do cycle instead of multiple "cd .."'s
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Failed to switch to directory Rep$nRep" "$j" "$iMCMC" "NPT"  #start fresh for do cycle instead of multiple "cd .."'s
 
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
@@ -136,7 +145,7 @@ do
 
 echo pinoffset = "$pinoffset"
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq || exit  #start fresh for do cycle instead of multiple "cd .."'s
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq || error_report "Failure to switch to directory NPT_eq" "$j" "$iMCMC" "NPT"  #start fresh for do cycle instead of multiple "cd .."'s
 
 if ls ../step*.pdb 1> /dev/null 2>&1 #Remove these warning files
 then
@@ -173,7 +182,7 @@ do
 
 echo pinoffset = "$pinoffset"
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || exit  #start fresh for do cycle instead of multiple "cd .."'s
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || error_report "Failure to switch to directory NPT_prd" "$j" "$iMCMC" "NPT"  #start fresh for do cycle instead of multiple "cd .."'s
 
 gmx grompp -f npt_prod.mdp -c ../npt_eq.gro -p ../../../../../"$Compound".top -o npt_prod.tpr > gromppout 2>> gromppout
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -deffnm npt_prod > runout 2>> runout &
@@ -200,13 +209,13 @@ done
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || exit  #start fresh for do cycle instead of multiple "cd .."'s
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || error_report "Failure to switch to directory NPT_prod" "$j" "$iMCMC" "NPT"  #start fresh for do cycle instead of multiple "cd .."'s
 
 sed -e '1,/A V E R A G E S/d' npt_prod.log | grep -m 1 -A1 'Box-X' | tail -n 1 | awk '{print $1}' > Lbox_NPT_ave
 
 Lbox_NPT=$(<Lbox_NPT_ave)
 
-cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  # move backwards
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Failure to switch to directory Rep$nRep" "$j" "$iMCMC" "NPT"  # move backwards
 gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$Lbox_NPT" "$Lbox_NPT" "$Lbox_NPT" -o "$Compound"_box.gro > insertout 2>> insertout || echo "Warning: Unsuccessful box creation based on NPT data!"
 
 done #for iMCMC
