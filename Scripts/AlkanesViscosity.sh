@@ -26,17 +26,18 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
-Model=Potoff
+Model=TraPPE
 Conditions_type=T293highP # ie T293highP
-BondType=harmonic  #Harmonic (flexible) or LINCS (fixed)
+BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no file is found
-jlim=2  # number of condition sets to run
-batches=2  # Number of batches to run
-NREPS=2 #Run NREPS replicates in parallel/# in a batch
+jlim=1  # number of condition sets to run
+batches=1  # Number of batches to run
+NREPS=3 #Run NREPS replicates in parallel/# in a batch
 pin0=28  # Default pinoffset, used to tell taskset where to run jobs
 nt_eq=1  # Thread number during equilibration
 nt_vis=1  # This thread number will serve in production and viscosity runs
 NPT=YES  # YES indicates NPT runs should be carried out prior to NVT runs
+NEMD=YES  # Calculate viscosity using the periodic perturbation method
 #Set the number of molecules
 Nmol=400
 
@@ -45,8 +46,8 @@ OVERRIDE_STEPS=YES
 # If OVERRIDE_STEPS=YES, arrays must be of length j 
 # indicating how many equilibration and production steps,
 # respectively, to perform for each j
-equil_steps=(100 500 500 500 500)
-prod_steps=(500 100 500 500 500)
+equil_steps=(5000 5000 500000 500000 500000)
+prod_steps=(5000 1000 1000 2000000 2000000)
 
 
 #Specify the path location for files
@@ -54,11 +55,16 @@ scripts_path=~/Scripts
 conditions_path=~/"$Conditions_type"_Conditions  
 exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
-output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+if [ "$NEMD" = "YES" ]
+then
+output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType"_NEMD #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
+else
+output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" 
+fi
 # The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
 # mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
-lj_mdp_path=~/LennardJonesVar
-t_mdp_path=~/TabulatedVar
+lj_mdp_path=~/LennardJonesNEMD
+t_mdp_path=~/Tabulated
 
 jobfile="$output_path"/"$Compound"_job_"$job_date" 
 cp "$scripts_path"/AlkanesViscosity.sh "$jobfile" #Keep track of what jobs have been submitted
@@ -475,6 +481,7 @@ gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o
 #We now use a different approach for assigning nodes
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
 cur_pid=$!
 taskset -cp "$pinoffset" $cur_pid > /dev/null 2>&1
 min_3_pids[${iMCMC}]=$cur_pid  # This is the third such step (others are in the subscript) hence 3
@@ -504,6 +511,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Un
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
 cur_pid=$!
 taskset -cp "$pinoffset" $cur_pid > /dev/null 2>&1
 min_4_pids[${iMCMC}]=$cur_pid
@@ -578,6 +586,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout &
 taskset -cp "$pinoffset"-"$((pinoffset+nt_vis-1))" $! > /dev/null 2>&1
 
 pinoffset=$((pinoffset+nt_vis))
@@ -602,6 +611,17 @@ done
 
 echo "Waiting for post processing viscosity data"
 
+if [ "$NEMD" = "YES" ]
+then
+echo "Processing for NEMD"
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || error_report "Unable to change to NVT_vis" "$j" "$iMCMC" "post processing"  #start fresh for do cycle instead of multiple "cd .."'s
+echo 34 | gmx energy -f nvt_vis.edr -s nvt_vis.tpr >vis_out 2>> vis_out 
+awk -f "$scripts_path"/vis_arrange.awk < energy.xvg > visco.xvg
+done
+else
+
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
 
@@ -617,7 +637,12 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 #echo 0 | gmx tcaf -f nvt_vis.trr -s nvt_vis.tpr > tcaf_out 2>> tcaf_out &
 
 Lbox="${liquid_box[j]}"
+if [ "$NPT" = "YES" ]  # If necessary, fetch the box size used due to NPT equilibration
+then
+Lbox=$(<../../../NPT_eq/NPT_prod/Lbox_NPT_ave)
+fi
 Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
+echo "Using Lbox $Lbox and Vbox $Vbox in post processing MCMC $iMCMC j $j Rep $nRep"
 
 ### Analyze Green-Kubo and Einstein
 
@@ -635,6 +660,8 @@ sleep 10s
 echo "Still post processing viscosity data"
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
 done
+
+fi  # If statement for what to do in case of NEMD vs EMD
 
 echo "Removing large viscosity output files"
 
@@ -698,6 +725,7 @@ fi
 
 done #for iMCMC
 
+
 cd "$output_path"/MCMC_"$iMCMC"/Saturated || error_report "Unable to change to Saturated directory" "$j" "$iMCMC" "post processing" 
 
 #rm -f rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/tcaf_all.xvg
@@ -717,7 +745,7 @@ echo "In $PWD"
 ###GreenKubo_analyze for all MCMC parameter sets
 python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --nReps 1 --irho "$j" --sat
 
-done
+done  # For each j
 
 cd "$output_path" || error_report "Unable to change to $output_path directory" "$j" "$iMCMC" "post processing" 
 ###Create plots to compare with experimental data and correlations

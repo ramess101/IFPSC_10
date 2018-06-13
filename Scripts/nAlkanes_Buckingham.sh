@@ -333,8 +333,9 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 # No longer using TCAF to obtain viscosities
 #echo 0 | gmx tcaf -f nvt_vis.trr -s nvt_vis.tpr > tcaf_out 2>> tcaf_out &
 
-Lbox="${liquid_box[j]}"
+Lbox=$(<../../../NPT_eq/NPT_prod/Lbox_NPT_ave)
 Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
+echo "Using Lbox $Lbox and Vbox $Vbox in post processing MCMC $iMCMC j $j Rep $nRep"
 
 ### Analyze Green-Kubo and Einstein
 
