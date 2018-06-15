@@ -90,6 +90,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Fa
 gmx grompp -f em_steep.mdp -c "$Compound"_box.gro -p ../../../"$Compound".top -o em_steep.tpr > gromppout 2>> gromppout
 #We now use a different approach for assigning nodes
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
+# gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_steep > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_steep > runout 2>> runout &
 cur_pid=$!
 min_1_pids[${iMCMC}]=$cur_pid  # Record the PID from that process
@@ -120,6 +121,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || error_report "Fa
 gmx grompp -f em_l-bfgs.mdp -c em_steep.gro -p ../../../"$Compound".top -o em_l_bfgs.tpr -maxwarn 1 >> gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -ntomp 1 -nt 1 -nb cpu -deffnm em_l_bfgs >> runout2 2>> runout2 &
 # UNDO -nt = 4
+# gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -pme cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt 1 -nb cpu -deffnm em_l_bfgs > runout2 2>> runout2 &
 cur_pid=$!
 min_2_pids[${iMCMC}]=$cur_pid
@@ -185,6 +187,7 @@ echo pinoffset = "$pinoffset"
 cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || error_report "Failure to switch to directory NPT_prd" "$j" "$iMCMC" "NPT"  #start fresh for do cycle instead of multiple "cd .."'s
 
 gmx grompp -f npt_prod.mdp -c ../npt_eq.gro -p ../../../../../"$Compound".top -o npt_prod.tpr > gromppout 2>> gromppout
+#gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm npt_prod > runout 2>> runout &
 gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -deffnm npt_prod > runout 2>> runout &
 taskset -cp "$pinoffset"-"$((pinoffset+nt_vis-1))" $! > /dev/null 2>&1
 

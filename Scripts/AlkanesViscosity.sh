@@ -8,6 +8,13 @@
 #
 #
 ####
+
+### IN ORDER TO CALCULATE RDF FUNCTIONS:
+# The groups specified by refs and sels (see below)
+# must be specified in the original compound's .gro file
+# Trajectory files must exists for the NVT production run
+###
+
 # Gives a more informative error when something goes wrong
 # with the script.
 error_report() {
@@ -32,23 +39,36 @@ BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no file is found
 jlim=1  # number of condition sets to run
 batches=1  # Number of batches to run
-NREPS=3 #Run NREPS replicates in parallel/# in a batch
-pin0=28  # Default pinoffset, used to tell taskset where to run jobs
-nt_eq=1  # Thread number during equilibration
-nt_vis=1  # This thread number will serve in production and viscosity runs
-NPT=YES  # YES indicates NPT runs should be carried out prior to NVT runs
-NEMD=YES  # Calculate viscosity using the periodic perturbation method
+NREPS=1 #Run NREPS replicates in parallel/# in a batch
+pin0=32  # Default pinoffset, used to tell taskset where to run jobs
+nt_eq=2  # Thread number during equilibration
+nt_vis=2  # This thread number will serve in production and viscosity runs
+NPT=NO  # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
+NEMD=YES  # Calculate viscosity using the periodic perturbation method  (YES or NO)
 #Set the number of molecules
 Nmol=400
 
+###### STEP SIZE INFORMATION #######
 # Runtiming control: override default runtimes=YES, otherwise use NO
 OVERRIDE_STEPS=YES
 # If OVERRIDE_STEPS=YES, arrays must be of length j 
 # indicating how many equilibration and production steps,
 # respectively, to perform for each j
-equil_steps=(5000 5000 500000 500000 500000)
-prod_steps=(5000 1000 1000 2000000 2000000)
+equil_steps=(1000000 500000 500000 500000 500000)
+prod_steps=(500000 1000000 1000000 2000000 2000000)
 
+# The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
+# mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
+lj_mdp_path=~/LennardJonesNEMD
+t_mdp_path=~/TabulatedNEMD
+
+#### RDF INFORMATION #####
+RDF=YES  # Whether to perform RDF calculations (YES or NO)
+RDF_single=NO   # Only perform one RDF run for each j (YES or NO)
+rdfs=2  # Number of RDF functions to produce for each NVT production run
+refs=(H2 H3)  # The references for RDF computation
+sels=(H2 H3)  # The other group in the RDF computation
+cut_rdf=.2  # Cutoff for interactions calculated by RDF
 
 #Specify the path location for files
 scripts_path=~/Scripts
@@ -61,10 +81,6 @@ output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"
 else
 output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" 
 fi
-# The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
-# mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
-lj_mdp_path=~/LennardJonesNEMD
-t_mdp_path=~/Tabulated
 
 jobfile="$output_path"/"$Compound"_job_"$job_date" 
 cp "$scripts_path"/AlkanesViscosity.sh "$jobfile" #Keep track of what jobs have been submitted
@@ -423,6 +439,13 @@ cd    Rep"$nRep" || error_report "Unable to change to directory Rep$nRep" "$j" "
 
 gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
+if [ "$RDF" = "YES" ]  # Do RDF setup
+then
+rdf_lim=$((rdfs - 1))  # Will be needed later for RDF computational loop
+# Create the index file for later- pipes the necessary quit command to the interactive tool
+echo q | gmx make_ndx -f "$Compound"_box.gro -o index.ndx > make_ndx.out 2>> make_ndx.out  
+fi
+
 #Copy the minimization files
 echo mdp_path "$mdp_path"
 cp "$mdp_path"/em_steep.mdp em_steep.mdp
@@ -585,7 +608,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 
 gmx grompp -f nvt_vis.mdp -c ../../nvt_eq.gro -p ../../../../../../"$Compound".top -o nvt_vis.tpr > gromppout 2>> gromppout
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -pin on -pinoffset "$pinoffset" -pinstride 1 -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout & #Can use more cores in liquid phase since vapor phase will have already finished
-gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis > runout 2>> runout &
+gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -pme cpu -deffnm nvt_vis -o nvt_vis.trr > runout 2>> runout &
 #gmx mdrun -table "$output_path"/MCMC_"$iMCMC"/tab_it.xvg -nt "$nt_vis" -nb cpu -deffnm nvt_vis > runout 2>> runout &
 taskset -cp "$pinoffset"-"$((pinoffset+nt_vis-1))" $! > /dev/null 2>&1
 
@@ -663,6 +686,29 @@ done
 
 fi  # If statement for what to do in case of NEMD vs EMD
 
+sleep 10s  # Added in because large files take time to finalize/move/copy
+
+if [ "$RDF" = "YES" ]  # An RDF calculation has been requested
+then
+echo "Working on RDF's"
+# Switch into every directory and perform RDF
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+# Should we actually operate on this iMCMC?
+if [ "$RDF_single" != "YES" ] || [ "$iMCMC" -eq 0 ]
+then
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || exit  #start fresh for do cycle instead of multiple "cd .."'s
+for i in $(seq 0 $rdf_lim)
+do
+# Name a file and run the requested rdf; there may be several
+filename=${refs[i]}_v_${sels[i]}_rdf 
+gmx rdf -f nvt_vis.trr -s nvt_vis.tpr -n ../../../index.ndx -ref ${refs[i]} -sel ${sels[i]} -o "$filename" -cut "$cut_rdf" >rdfout 2>>rdfout
+gracebat -hdevice PNG "$filename".xvg >/dev/null 2>/dev/null
+done  # With all requested RDFs
+fi    # With decision of whether to operate this round
+done  # With all iMCMC rdf runs
+fi
+
 echo "Removing large viscosity output files"
 
 for iMCMC in $(seq $NREP_low $NREP_high)
@@ -672,7 +718,7 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 
 if [ -e vis_out ]
 then
-#rm nvt_vis.trr
+rm nvt_vis.trr
 rm energy.xvg
 rm nvt_vis.edr
 rm enecorr.xvg
