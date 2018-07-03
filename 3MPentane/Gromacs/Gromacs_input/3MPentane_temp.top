@@ -163,18 +163,18 @@ DRG      3
 ;   nr      type  resnr resid  atom  cgnr   charge     mass
      1       CH3_C   1  DRG     CAE     1    0.000  15.0345   
      2       CH2_C   1  DRG     CAA     1    0.000  14.02660   
-     3       CH1_C   1  DRG     CAB     1    0.000  13.01900   
+     3       CH_C   1  DRG     CAB     1    0.000  13.01900   
      4       CH3_C   1  DRG     CAD     1    0.000  15.0345   
      5       CH2_C   1  DRG     CAC     1    0.000  14.02660   
      6       CH3_C   1  DRG     CAF     1    0.000  15.0345   
 
 [ bonds ]
 ; ai  aj  fu    c0, c1, ...
-   2   1   2    some_bondlength_CH3    502416.0 ;   CAA  CAE   
-   3   2   2    1       0.1540    502416.0 ;   CAB  CAA   
-   3   4   2    1       0.1540    502416.0 ;   CAB  CAD   
-   3   5   2    1       0.1540    502416.0 ;   CAB  CAC   
-   5   6   2    some_bondlength_CH3    502416.0 ;   CAC  CAF   
+   2   1   1    some_bondlength_CH3    502416.0 ;   CAA  CAE   
+   3   2   1    0.1540    502416.0 ;   CAB  CAA   
+   3   4   1    some_bondlength_CH3    502416.0 ;   CAB  CAD   
+   3   5   1    0.1540    502416.0 ;   CAB  CAC   
+   5   6   1    some_bondlength_CH3    502416.0 ;   CAC  CAF   
 
 [ angles ]
 ; ai  aj  ak  fu    c0, c1, ...
