@@ -1,5 +1,5 @@
 ; Run control
-integrator               = md    
+integrator               = md       ; Leap frog
 tinit                    = 0
 dt                       = 0.002
 nsteps                   = some_nsteps    ; 100 ps
@@ -12,7 +12,7 @@ nstlog                   = 50000
 nstenergy                = 0
 nstxout-compressed       = 0
 ; Neighborsearching and short-range nonbonded interactions
-cutoff-scheme            = Verlet
+cutoff-scheme            = group
 nstlist                  = 20
 ns_type                  = grid
 pbc                      = xyz
@@ -21,7 +21,7 @@ rlist                    = some_rvdw
 coulombtype              = cutoff
 rcoulomb                 = some_rvdw
 ; van der Waals
-vdwtype                  = cutoff
+vdwtype                  = user
 vdw-modifier             = none
 rvdw                     = some_rvdw
 ; Apply long range dispersion corrections for Energy and Pressure
@@ -43,7 +43,9 @@ tau_p                    = 1.0
 compressibility          = 4.5e-05
 ref_p                    = some_pressure
 ; options for bonds
-constraints              = none
+constraints              = all-bonds
+constraint_algorithm     = lincs
+lincs-order              = 8
 ; No velocities during EM 
 gen_vel                  = yes
 gen-temp                 = some_temperature
