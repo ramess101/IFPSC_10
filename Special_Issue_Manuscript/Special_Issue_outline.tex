@@ -151,6 +151,8 @@ Refer to Best Practices document
 	\item 12 time origins
 \end{enumerate}
 
+We have tried to 
+
 \section{Results}
 
 \subsection{Saturated Liquid}
@@ -220,7 +222,21 @@ Figures:
 
 \section{Discussion/Limitations}
 
-
+\begin{enumerate}
+	\item Discussion
+	\begin{enumerate}
+		\item Mie potentials parameterized with VLE data provide significant improvement over LJ 12-6
+		\item Potoff over-predicts $\eta-\rho$ dependence while TAMie is fairly accurate
+		\item Potoff appears to be slightly more accurate for $\eta-P$
+		\item Branched alkanes are not as accurate, perhaps assumption of transferability or torsional parameters
+	\end{enumerate}
+    \item Limitations
+    \begin{enumerate}
+    	\item Largest viscosity simulations are slow to converge and unclear if simulations are sufficiently long
+    	\item Tail-corrections could impact dynamics
+    	\item Using REFPROP saturation conditions instead of force fields
+    \end{enumerate}
+\end{enumerate}
 
 \section{Conclusions}
 
@@ -230,11 +246,81 @@ Figures:
 
 \subsection{Gromacs input files}
 
-\subsection{Raw data, tabulated values}
+\begin{enumerate}
+	\item Include all the .gro files
+	\item Include all the .top file templates
+	\item Include .mdp files
+	\item Or we can just include an example and then refer them to the GitHub website
+\end{enumerate}
+
+\subsection{Tabulated values}
+
+\begin{enumerate}
+	\item Ethane
+	\begin{enumerate}
+		\item Saturation
+        \begin{enumerate}
+        	\item Potoff
+        	\item TraPPE
+        	\item AUA4
+        	\item TAMie
+        \end{enumerate}
+		\item T293 highP
+		\begin{enumerate}
+			\item Potoff
+			\item TraPPE
+			\item AUA4
+			\item TAMie
+		\end{enumerate}
+	\end{enumerate}
+    \item Propane
+   	\begin{enumerate}
+    	\item Saturation
+    	\begin{enumerate}
+    		\item Potoff
+    		\item TraPPE
+    		\item AUA4
+    		\item TAMie
+    	\end{enumerate}
+    	\item T293 highP
+    	\begin{enumerate}
+    		\item Potoff
+    		\item TraPPE
+    		\item AUA4
+    		\item TAMie
+    	\end{enumerate}
+    \end{enumerate}
+    \item n-Butane
+    \begin{enumerate}
+    	\item Saturation
+    	\begin{enumerate}
+    		\item Potoff
+    		\item TraPPE
+    		\item AUA4
+    		\item TAMie
+    	\end{enumerate}
+    	\item T293 highP
+    	\begin{enumerate}
+    		\item Potoff
+    		\item TraPPE
+    		\item AUA4
+    		\item TAMie
+    	\end{enumerate}
+    \end{enumerate}
+    Repeat for all other compounds with corresponding potentials    
+\end{enumerate}
 
 \subsection{Finite-size effects}
 
+\begin{enumerate}
+	\item Simulation results for 100, 200, 400, and 800 molecules
+\end{enumerate}
+
 \subsection{Simulation length effects}
+
+\begin{enumerate}
+	\item Verified that 1 ns is long enough for larger compounds
+\end{enumerate}
 
 \subsection{Validation Runs}
 
@@ -245,7 +331,16 @@ Figures:
 
 \subsection{Bond types, Harmonic vs LINCS}
 
+\begin{enumerate}
+	\item Propane and n-butane with harmonic (arbirary bond constant) shows systematic increase
+\end{enumerate}
+
 \subsection{Green-Kubo analysis}
+
+\begin{enumerate}
+	\item Raw data, i.e., multiple replicates with the average
+	\item Exclude low time data and have a heurestic for determining the cut-off time
+\end{enumerate}
 
 Example analysis, i.e., bootstrap distribution, replicates
 
