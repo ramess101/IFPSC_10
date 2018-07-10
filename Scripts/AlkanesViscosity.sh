@@ -12,7 +12,13 @@
 ### IN ORDER TO CALCULATE RDF FUNCTIONS:
 # The groups specified by refs and sels (see below)
 # must be specified in the original compound's .gro file
+# Check that the names given in the .gro file are the names
+# which actually appear in the index file if there are problems.
 # Trajectory files must exists for the NVT production run
+###
+
+### IN ORDER TO RUN NEMD
+# 
 ###
 
 # Gives a more informative error when something goes wrong
@@ -33,42 +39,51 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
-Model=TraPPE
-Conditions_type=T293highP # ie T293highP
+Model=Potoff
+Conditions_type="$Model"_Saturation   #Saturation # ie T293highP
 BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
-Temp=293  # Default temp, used if no file is found
-jlim=1  # number of condition sets to run
-batches=1  # Number of batches to run
-NREPS=1 #Run NREPS replicates in parallel/# in a batch
-pin0=32  # Default pinoffset, used to tell taskset where to run jobs
+Temp=293  # Default temp, used if no temperature file is found in conditions path
+jlim=1  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
+jlow=0  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
+batches=3  # Number of batches to run
+NREPS=18 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
+pin0=30  # Default pinoffset, used to tell taskset where to run jobs
 nt_eq=2  # Thread number during equilibration
 nt_vis=2  # This thread number will serve in production and viscosity runs
 NPT=NO  # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
-NEMD=YES  # Calculate viscosity using the periodic perturbation method  (YES or NO)
+NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
+RDF=NO  # Whether to perform RDF calculations (YES or NO)
 #Set the number of molecules
 Nmol=400
 
 ###### STEP SIZE INFORMATION #######
 # Runtiming control: override default runtimes=YES, otherwise use NO
-OVERRIDE_STEPS=YES
+OVERRIDE_STEPS=NO
 # If OVERRIDE_STEPS=YES, arrays must be of length j 
 # indicating how many equilibration and production steps,
 # respectively, to perform for each j
-equil_steps=(1000000 500000 500000 500000 500000)
-prod_steps=(500000 1000000 1000000 2000000 2000000)
+equil_steps=(50000 500000 500000 500000 500000)
+prod_steps=(50000 1000000 1000000 1000000 1000000)
 
 # The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
 # mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
-lj_mdp_path=~/LennardJonesNEMD
-t_mdp_path=~/TabulatedNEMD
+lj_mdp_path=~/LennardJones
+t_mdp_path=~/Tabulated
 
 #### RDF INFORMATION #####
-RDF=YES  # Whether to perform RDF calculations (YES or NO)
 RDF_single=NO   # Only perform one RDF run for each j (YES or NO)
 rdfs=2  # Number of RDF functions to produce for each NVT production run
-refs=(H2 H3)  # The references for RDF computation
+refs=(H2 H3)  # The references for RDF computation; length must equal rdfs
 sels=(H2 H3)  # The other group in the RDF computation
 cut_rdf=.2  # Cutoff for interactions calculated by RDF
+
+#### NEMD INFORMATION #######
+if [ "$NEMD" = "YES" ]
+then
+NEMD_pts=10  # Number of different cos-accelerations to use
+cos_acc=(.01 .02 .03 .04 .05 .06 .07 .08 .09 .1)
+NREPS=$NEMD_pts
+fi
 
 #Specify the path location for files
 scripts_path=~/Scripts
@@ -94,11 +109,18 @@ touch press_all_log
 touch Lbox_all
 
 ### Read the box size, that depends on number of molecules
+if [ -f "$conditions_path"/"$Compound"_liquid_box_N"$Nmol" ]
+then
 
 while read line
 do 
 liquid_box+=("$line")
 done < "$conditions_path"/"$Compound"_liquid_box_N"$Nmol"
+
+else
+echo "Unable to read box from $conditions_path"/"$Compound"_liquid_box_N"$Nmol"
+exit 1
+fi
 
 # If pressure data is needed for an NPT run,
 # Determine whether or not the pressure data is available.
@@ -122,7 +144,7 @@ fi
 ### Determine Temperature. In some cases temperature should be read from a file
 # IF a temperature file exists, it will use that 
 temp_search_path="$conditions_path"/"$Compound"_Temp
-if [ "$Conditions_type" = "Saturation" ]
+if [ "$Conditions_type" = "Saturation" ] || [ "$Conditions_type" = "$Model"_"Saturation" ]
 then
 temp_search_path="$conditions_path"/"$Compound"_Tsat
 fi
@@ -138,7 +160,7 @@ done < "$temp_search_path"
 # Make the array the same length as the pressure
 echo Temperatures ${temps[@]} read from "$temp_search_path"
 else
-for ((x=0; x < ${#press[@]}; x++))  # C style loop 
+for ((x=0; x < ${#liquid_box[@]}; x++))  # C style loop 
 do
 temps+=("$Temp")
 done
@@ -259,16 +281,9 @@ epsCH2_sim=61. # (K)
 sigCH2_sim=0.399 # (nm)
 lamCH2_sim=16.0
 
-# Transferable sites
-#epsCH_sim=15.00 # (K)
-#sigCH_sim=0.460 # (nm)
-#lamCH_sim=16.0
-
-#epsC_sim=0.5 # (K)
-#sigC_sim=0.610 # (nm)
-#lamC_sim=16.0
-
 #S/L
+if [ "$Compound" = 'IC4H10' ] || [ "$Compound" = 'IC5H12' ] || [ "$Compound" = 'NEOC5H12' ] || [ "$Compound" = '23DMButane' ]
+
 #Short (4 or fewer C backbone)
 epsCH_sim=15.00 # (K)
 sigCH_sim=0.470 # (nm)
@@ -277,6 +292,37 @@ lamCH_sim=16.0
 epsC_sim=1.45 # (K)
 sigC_sim=0.610 # (nm)
 lamC_sim=16.0
+
+echo "You are using short CH and C parameters"
+
+elif [ "$Compound" = 'IC6H14' ] || [ "$Compound" = 'IC8H18' ] || [ "$Compound" = '3MPentane' ]
+then
+
+#Long (5 or more C backbone)
+epsCH_sim=14.00 # (K)
+sigCH_sim=0.470 # (nm)
+lamCH_sim=16.0
+
+epsC_sim=1.2 # (K)
+sigC_sim=0.620 # (nm)
+lamC_sim=16.0
+
+echo "You are using long CH and C parameters"
+
+else
+
+# Transferable sites
+epsCH_sim=15.00 # (K)
+sigCH_sim=0.460 # (nm)
+lamCH_sim=16.0
+
+epsC_sim=0.5 # (K)
+sigC_sim=0.610 # (nm)
+lamC_sim=16.0
+
+echo "You are using transferable CH and C parameters"
+
+fi
 
 lam_sim=16.0
 
@@ -378,7 +424,7 @@ fi
 jlim=$((jlim - 1))
 batches=$((batches - 1))  # Limits for 0 indexed loops later
 
-for j in $(seq 0 $jlim) # Number of conditions to run
+for j in $(seq $jlow $jlim) # Number of conditions to run
 
 do
 
@@ -463,6 +509,8 @@ cp "$mdp_path"/nvt_eq_no_output_"$BondType".mdp nvt_eq.mdp
 sed -i -e s/some_temperature/"${temps[j]}"/ nvt_eq.mdp
 sed -i -e s/some_nsteps/"${equil_steps[j]}"/ nvt_eq.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_eq.mdp
+cur_ind=$((iMCMC - NREP_low))  # Find the proper cos_acceleration and subsitute
+sed -i -e s/some_cos_acceleration/"${cos_acc[cur_ind]}"/ nvt_eq.mdp
 
 # Still creating NVT_prod directory so that our codes are backwards compatible with data analysis (i.e. same directory hierarchy)
 
@@ -479,6 +527,7 @@ cp "$mdp_path"/nvt_vis_no_xv_"$BondType".mdp nvt_vis.mdp
 sed -i -e s/some_temperature/"${temps[j]}"/ nvt_vis.mdp
 sed -i -e s/some_nsteps/"${prod_steps[j]}"/ nvt_vis.mdp
 sed -i -e s/some_rvdw/"$rvdw"/ nvt_vis.mdp
+sed -i -e s/some_cos_acceleration/"${cos_acc[cur_ind]}"/ nvt_vis.mdp
 
 done # for loop over iMCMC
 
@@ -640,9 +689,15 @@ echo "Processing for NEMD"
 for iMCMC in $(seq $NREP_low $NREP_high)
 do
 cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || error_report "Unable to change to NVT_vis" "$j" "$iMCMC" "post processing"  #start fresh for do cycle instead of multiple "cd .."'s
-echo 34 | gmx energy -f nvt_vis.edr -s nvt_vis.tpr >vis_out 2>> vis_out 
-awk -f "$scripts_path"/vis_arrange.awk < energy.xvg > visco.xvg
+echo 34 | gmx energy -f nvt_vis.edr -s nvt_vis.tpr > vis_out 2 >> vis_out   # Get 1/NEMD_VISCOSITY
+awk -f "$scripts_path"/vis_arrange.awk < energy.xvg > visco_temp.xvg  # Convert to NEMD_VISCOSITY
+awk -f "$scripts_path"/runavg.awk < visco_temp.xvg > visco.xvg  # Perform running average
+vis_avg=$(<visco_avg.txt)  # Read in average
+echo "${cos_acc[iMCMC]}	$vis_avg" >> "$output_path"/cosacc_vs_vis.txt
+rm visco_temp.xvg  # Remove bulky files
+rm energy.xvg
 done
+exit 0
 else
 
 for iMCMC in $(seq $NREP_low $NREP_high)
@@ -670,11 +725,12 @@ echo "Using Lbox $Lbox and Vbox $Vbox in post processing MCMC $iMCMC j $j Rep $n
 ### Analyze Green-Kubo and Einstein
 
 echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out &
+ls -la >> size_records.txt
 
 done #for iMCMC
 
 nit=0
-maxit=60 #Don't want this too high, so it will finish eventually
+maxit=60000 #Don't want this too high, so it will finish eventually
 ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
 while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
 do
@@ -707,7 +763,7 @@ gracebat -hdevice PNG "$filename".xvg >/dev/null 2>/dev/null
 done  # With all requested RDFs
 fi    # With decision of whether to operate this round
 done  # With all iMCMC rdf runs
-fi
+fi # if RDF=YES
 
 echo "Removing large viscosity output files"
 
@@ -718,6 +774,8 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 
 if [ -e vis_out ]
 then
+echo "Second attempt at size info gathering" > size_records.txt
+ls -la >> size_records.txt
 rm nvt_vis.trr
 rm energy.xvg
 rm nvt_vis.edr
