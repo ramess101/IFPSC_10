@@ -38,18 +38,18 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C22H46
+Compound=C4H10
 Model=Potoff
-Conditions_type=Saturation # ie T293highP
+Conditions_type="$Model"_Saturation   #Saturation # ie T293highP
 BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
 jlim=1  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
 jlow=0  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
-batches=1  # Number of batches to run
-NREPS=2 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
-pin0=38  # Default pinoffset, used to tell taskset where to run jobs
-nt_eq=1  # Thread number during equilibration
-nt_vis=1  # This thread number will serve in production and viscosity runs
+batches=3  # Number of batches to run
+NREPS=18 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
+pin0=30  # Default pinoffset, used to tell taskset where to run jobs
+nt_eq=2  # Thread number during equilibration
+nt_vis=2  # This thread number will serve in production and viscosity runs
 NPT=NO  # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
 NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
 RDF=NO  # Whether to perform RDF calculations (YES or NO)
@@ -58,7 +58,7 @@ Nmol=400
 
 ###### STEP SIZE INFORMATION #######
 # Runtiming control: override default runtimes=YES, otherwise use NO
-OVERRIDE_STEPS=YES
+OVERRIDE_STEPS=NO
 # If OVERRIDE_STEPS=YES, arrays must be of length j 
 # indicating how many equilibration and production steps,
 # respectively, to perform for each j
@@ -67,8 +67,8 @@ prod_steps=(50000 1000000 1000000 1000000 1000000)
 
 # The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
 # mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
-lj_mdp_path=~/LennardJonesTest
-t_mdp_path=~/TabulatedVarTest
+lj_mdp_path=~/LennardJones
+t_mdp_path=~/Tabulated
 
 #### RDF INFORMATION #####
 RDF_single=NO   # Only perform one RDF run for each j (YES or NO)
@@ -144,7 +144,7 @@ fi
 ### Determine Temperature. In some cases temperature should be read from a file
 # IF a temperature file exists, it will use that 
 temp_search_path="$conditions_path"/"$Compound"_Temp
-if [ "$Conditions_type" = "Saturation" ]
+if [ "$Conditions_type" = "Saturation" ] || [ "$Conditions_type" = "$Model"_"Saturation" ]
 then
 temp_search_path="$conditions_path"/"$Compound"_Tsat
 fi
@@ -281,16 +281,9 @@ epsCH2_sim=61. # (K)
 sigCH2_sim=0.399 # (nm)
 lamCH2_sim=16.0
 
-# Transferable sites
-#epsCH_sim=15.00 # (K)
-#sigCH_sim=0.460 # (nm)
-#lamCH_sim=16.0
-
-#epsC_sim=0.5 # (K)
-#sigC_sim=0.610 # (nm)
-#lamC_sim=16.0
-
 #S/L
+if [ "$Compound" = 'IC4H10' ] || [ "$Compound" = 'IC5H12' ] || [ "$Compound" = 'NEOC5H12' ] || [ "$Compound" = '23DMButane' ]
+
 #Short (4 or fewer C backbone)
 epsCH_sim=15.00 # (K)
 sigCH_sim=0.470 # (nm)
@@ -299,6 +292,37 @@ lamCH_sim=16.0
 epsC_sim=1.45 # (K)
 sigC_sim=0.610 # (nm)
 lamC_sim=16.0
+
+echo "You are using short CH and C parameters"
+
+elif [ "$Compound" = 'IC6H14' ] || [ "$Compound" = 'IC8H18' ] || [ "$Compound" = '3MPentane' ]
+then
+
+#Long (5 or more C backbone)
+epsCH_sim=14.00 # (K)
+sigCH_sim=0.470 # (nm)
+lamCH_sim=16.0
+
+epsC_sim=1.2 # (K)
+sigC_sim=0.620 # (nm)
+lamC_sim=16.0
+
+echo "You are using long CH and C parameters"
+
+else
+
+# Transferable sites
+epsCH_sim=15.00 # (K)
+sigCH_sim=0.460 # (nm)
+lamCH_sim=16.0
+
+epsC_sim=0.5 # (K)
+sigC_sim=0.610 # (nm)
+lamC_sim=16.0
+
+echo "You are using transferable CH and C parameters"
+
+fi
 
 lam_sim=16.0
 
