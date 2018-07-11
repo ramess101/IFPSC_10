@@ -283,7 +283,7 @@ lamCH2_sim=16.0
 
 #S/L
 if [ "$Compound" = 'IC4H10' ] || [ "$Compound" = 'IC5H12' ] || [ "$Compound" = 'NEOC5H12' ] || [ "$Compound" = '23DMButane' ]
-
+then
 #Short (4 or fewer C backbone)
 epsCH_sim=15.00 # (K)
 sigCH_sim=0.470 # (nm)
