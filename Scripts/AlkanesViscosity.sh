@@ -1,4 +1,5 @@
 #!/bin/bash
+source /usr/local/gromacs/bin/GMXRC
 ####
 #
 #This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
