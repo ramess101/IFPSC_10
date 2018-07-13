@@ -41,7 +41,7 @@ job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
 Model=Potoff
-Conditions_type="$Model"_Saturation   #Saturation # ie T293highP
+Conditions_type=Saturation   #Saturation # ie T293highP
 BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
 jlim=1  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
