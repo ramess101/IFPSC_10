@@ -1,0 +1,18 @@
+Herrmann, S. and Vogel, E.,
+ "New Formulation for the Viscosity of n-Butane,"
+ J. Phys. Chem. Ref. Data, 47, 013104, 2018.
+ doi: 10.1063/1.5020802
+
+
+Extracted from the manuscript:
+"The viscosity at low pressures p = 0.2 MPa is described
+with an expanded uncertainty of 0.5% (coverage factor k = 2)
+for temperatures 293 = T/K = 626. The expanded uncertainty
+in the vapor phase at subcritical temperatures T = 298 K as 
+well as in the supercritical thermodynamic region T = 448 K 
+at pressures p = 30 MPa is estimated to be 1.5%. It is raised to 4.0% 
+in regions where only less reliable primary data sets are available 
+and to 6.0% in ranges without any primary data, but in which the 
+equation of state is valid. A weakness of the reference equation of 
+state in the near-critical region prevents estimation of the 
+expanded uncertainty in this region."

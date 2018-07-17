@@ -1,0 +1,19 @@
+Huber, M.L., Laesecke, A., and Perkins, R.A.,
+ "Transport Properties of n-Dodecane,"
+ Energy & Fuels, 18:968-975, 2004.
+
+The estimated uncertainty in viscosity is 0.5% along the saturated liquid line,
+ 2% in compressed liquid to 200 MPa, 5% in vapor and supercritical regions.
+
+DATA SOURCES FOR VISCOSITY
+ The parameters for viscosity were based on the data of:
+ Knapstad, B. Skolsvik, P.A., and Oye, H.A., "Viscosity of Pure Hydrocarbons," J. Chem. Eng. Data, 34:37-43, 1989. doi: 10.1021/je00055a013
+ Knapstad, B., Skjolsvik, P.A., and Oye, H.A., "Viscosity of Three Binary Hydrocarbon Mixtures," J. Chem. Eng. Data, 36(1):84-88, 1991. doi: 10.1021/je00001a025
+ Dymond, J.H. and Young, K.J., "Transport Properties of Nonelectrolyte Liquid Mixtures- I. Viscosity Coefficients for n-Alkane Mixtures at Saturation Pressure from 283 to 378 K," Int. J. Thermophys., 1(4):331-344, 1980. doi: 10.1007/BF00516562
+ Caudwell, D.R., Trusler, J.P.M., Vesovic, V., and Wakeham, W.A., "The Viscosity and Density of n-Dodecane and n-Octadecane at Pressures up to 200 MPa and Temperatures up to 473 K," Int. J. Thermophys., 25(5):1339-1352, 2004. doi: 10.1007/s10765-004-5742-0
+ Lyusternik, V.E. and Zhdanov, A.G., Teplofiz. Svoistva Veshchestv Mater, No.7, Rabinovich, V.A. ed., Standards Publishing, Moscow, 1973.
+ Giller, E.B. and Drickamer, H.G., "Viscosity of Normal Paraffins near the Freezing Point," Ind. Eng. Chem., 41(9):2067-2069, 1949. doi: 10.1021/ie50477a056
+ Average absolute deviations of the fit from the experimental data are:
+ Knapstad, 1989: avg 0.35% (max 0.66); Knapstad, 1991: avg 0.29% (max 0.73);
+ Caudwell: avg 1.11% (max 3.44); Lyusternik: 0.92% (max 2.14) Giller: 0.70% (max 1.17%).
+ Overall: 0.95%.

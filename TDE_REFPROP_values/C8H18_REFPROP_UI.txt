@@ -1,0 +1,16 @@
+Huber, M.L., Laesecke, A., and Xiang, H.W., "Viscosity Correlations for
+ Minor Constituent Fluids in Natural Gas: n-Octane, n-Nonane and n-Decane,"
+ Fluid Phase Equilib., 224:263-270, 2004.
+
+The estimated uncertainty in viscosity is 0.5% along the saturated liquid line,
+ 2% in compressed liquid to 200 MPa, 5% in vapor and supercritical regions.
+
+DATA SOURCES FOR VISCOSITY
+ The parameters for viscosity were based in part on the data of:
+ Knapstad, B., Skjolsvik, P.A., Oye, H.A., "Viscosity of Three Binary Hydrocarbon Mixtures," J. Chem. Eng. Data, 36:84-88, 1991.
+ Dymond, J.H., Young, K.J., "Transport Properties of Nonelectrolyte Liquid Mixtures- I. Viscosity Coefficients for n-Alkane Mixtures at Saturation Pressure from 283 to 378 K," Int. J. Thermophys., 1(4):331-344, 1980.
+ Caudwell, D.R., "Viscosity measurements on dense fluid mixtures, PhD Thesis, Imperial College, London, UK, 2004.
+ Lyusternik, V.E. and Zhdanov, A.G., Teplofiz. Svoistva Veshchestv Mater, No.7, Rabinovich, V.A. ed., Standards Publishing, Moscow, 1973.
+ Average absolute deviations of the fit from the experimental data are:
+ Knapstad: avg 0.20% (max 0.37); Dymond avg. 0.27% (max 0.45);
+ Caudwell: avg 0.59% (max 2.71); Lyusternik: 1.07% (max -1.85).

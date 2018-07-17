@@ -1,0 +1,4 @@
+private communication to M. Huber from V. Vesovic, Oct. 2017.
+
+Estimated uncertainty for liquid over 298 K to 722 K at pressures to 200 MPa is 2%.
+ Uncertainty in the vapor phase is approximately 10%.
