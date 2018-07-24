@@ -40,8 +40,8 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=C4H10
-Model=Potoff
-Conditions_type=Saturation   #Saturation # ie T293highP
+Model=TraPPE
+Conditions_type="$Model"_Saturation   #Saturation # ie T293highP
 BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
 jlim=1  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
@@ -285,6 +285,7 @@ lamCH2_sim=16.0
 #S/L
 if [ "$Compound" = 'IC4H10' ] || [ "$Compound" = 'IC5H12' ] || [ "$Compound" = 'NEOC5H12' ] || [ "$Compound" = '23DMButane' ]
 then
+
 #Short (4 or fewer C backbone)
 epsCH_sim=15.00 # (K)
 sigCH_sim=0.470 # (nm)
