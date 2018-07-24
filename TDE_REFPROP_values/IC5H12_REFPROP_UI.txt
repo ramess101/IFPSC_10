@@ -1,0 +1,14 @@
+Huber, M.L., (2018) "Models for the Viscosity, Thermal Conductivity, and
+ Surface Tension of Selected Pure Fluids as Implemented in REFPROP v10.0",
+ NISTIR 8209; doi: 10.6028/NIST.IR.8209
+
+VISCOSITY
+ Fit to the data (at P< 100 MPa) of:
+ Giller, E. B., Drickamer, H. G., Ind. Eng. Chem., 1949, 41, 2067-2069.
+ Oliveira, C. M. B. P., Wakeham, W. A., Int. J. Thermophys., 1992, 13, 773-790.
+ Estrada-Baltazar, A., Iglesias-Silva, G. A., Barrufet, M. A., J. Chem. Eng. Data, 1998, 43, 601-604.
+ Audonnet, F., Padua, A. A. H., Fluid Phase Equilib., 2001, 181, 147-161.
+ Tohidi, B., Burgass, R. W., Danesh, A., Todd, A. C., J. Chem. Eng. Data, 2001, 46, 385-390.
+ Ma, P. S., Zhou, Q., Yang, C., Xia, S., Huagong Xuebao, 2004, 55, 6,1608-1613.
+
+ The estimated uncertainty of the viscosity of the liquid phase at pressures below 100 MPa is 4%.

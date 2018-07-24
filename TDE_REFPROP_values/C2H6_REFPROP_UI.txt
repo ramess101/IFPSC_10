@@ -1,0 +1,10 @@
+Vogel, E., Span, R., and Herrmann, S.,
+ "Reference Correlation for the Viscosity of Ethane,"
+ J. Phys. Chem. Ref. Data, 44, 043101, 2015.
+ doi: 10.1063/1.4930838
+
+The viscosity in the limit of zero density has an expanded uncertainty (at 95% confidence)
+ of 0.5% for 290 <T <625 K, increasing to 1% at temperatures down to 212 K.
+ The uncertainty is 1.5% for 290 <T <430 K at pressures to 30 MPa. For additional
+ information on uncertainty consult the referenced manuscript.
+

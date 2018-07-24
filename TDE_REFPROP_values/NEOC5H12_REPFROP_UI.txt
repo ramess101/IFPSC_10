@@ -1,0 +1,9 @@
+*** ESTIMATION METHOD *** NOT STANDARD REFERENCE QUALITY ***
+Huber, M.L., "Models for the Viscosity, Thermal Conductivity, and Surface Tension
+ of Selected Pure Fluids as Implemented in REFPROP v10.0," NISTIR 8209, 2018.
+ doi: 10.6028/NIST.IR.8209
+
+Estimated uncertainty in liquid viscosity <10% for pressures to 100 MPa
+ based on comparisons with data of:
+ Gonzalez, M. H. and Lee, A. L., J. Chem. Eng. Data, 13:66-69, 1968.
+ Van Wijk, W.R., van der Veen, J.H., Brinkman, Seeder, W.A., "Effect of Temperature and Specific Volume on the Viscosity of Liquids," Physica (Amsterdam), 7, 45-6, 1940.

@@ -1,0 +1,10 @@
+Huber, M.L., "Models for the Viscosity, Thermal Conductivity, and Surface Tension
+ of Selected Pure Fluids as Implemented in REFPROP v10.0," NISTIR 8209, 2018.
+ doi: 10.6028/NIST.IR.8209
+
+VISCOSITY
+ Padua, A.A.H., Fareleira, J.M.N.A., and Calado, J.C.G., "Density and Viscosity Measurements of 2,2,4-Trimethylpentane (Isooctane) from 198 K to 348 K and up to 100 MPa," J. Chem. Eng. Data, 41:1488-1494, 1996.
+ Zambrano, J.R., et al., "Contributing to Accurate High Pressure Viscosity Measurements: Vibrating Wire Viscometer and Falling Body Viscometer Techniques," J. Chem. Thermo., 96:104-116, 2016.
+
+The estimated uncertainty for the liquid phase at pressures to 100 MPa is 5%,
+ 10% for the gas phase.

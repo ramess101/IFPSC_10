@@ -1,0 +1,10 @@
+Huber, M.L., "Models for the Viscosity, Thermal Conductivity, and Surface Tension
+ of Selected Pure Fluids as Implemented in REFPROP v10.0," NISTIR 8209, 2018.
+ doi: 10.6028/NIST.IR.8209
+
+VISCOSITY
+ The ECS parameters for viscosity were based on the data of:
+ Wen, C., Meng, X., Wei, K., Wu, J., "Compressed Liquid Viscosity of 2-Methylpentane, 3-Methylpentane, and 2,3-Dimethylbutane at Temperatures from (273 to 343) K and Pressures up to 40 MPa,"
+ J. Chem. Eng. Data, 62:1146-1152, 2017.
+
+Estimated uncertainty for liquid from 283-343 K at pressures to 30 MPa is 2%, vapor phase is 10%. No vapor data available for comparison.

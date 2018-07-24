@@ -1,0 +1,11 @@
+Vogel, E. and Herrmann, S.,
+ "New Formulation for the Viscosity of Propane,"
+ J. Phys. Chem. Ref. Data, 45, 043103, 2016.
+ doi: 10.1063/1.4966928
+
+The viscosity at low pressures (< 0.2 MPa) has an expanded uncertainty
+ (at 95% confidence) of 0.5% for 273 < T < 625 K.
+ The uncertainty is 1.5% for the vapor phase at subcritical temperatures T = 273 K
+ as well as in the supercritical thermodynamic region T = 423 K at pressures
+ up to 30 MPa. For additional information on uncertainty consult the referenced manuscript.
+
