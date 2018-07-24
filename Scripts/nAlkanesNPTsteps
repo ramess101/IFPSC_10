@@ -1,4 +1,5 @@
 #!/bin/bash
+source /usr/local/gromacs/bin/GMXRC
 # Despite the name, this should work for all the alkanes.
 # This is a helper script to handle the NPT stages.
 
@@ -156,7 +157,7 @@ rm ../step*.pdb
 fi
 
 gmx grompp -f npt_eq.mdp -c ../em_l_bfgs.gro -p ../../../../"$Compound".top -o npt_eq.tpr > gromppout 2>> gromppout
-"$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu npt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$liquid_box" npt &
+bash "$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu npt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$liquid_box" npt &
 
 pinoffset=$((pinoffset+nt_eq))
 

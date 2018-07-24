@@ -1,4 +1,5 @@
 #!/bin/bash
+source /usr/local/gromacs/bin/GMXRC
 ####
 #
 #This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
@@ -456,7 +457,7 @@ mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || error_report "Unable to change to MCMC_$iMCMC" "$j" "$iMCMC" "start up"
 
 ###Create files with force field parameters
-"$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol"
+bash "$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol"
 
 ### Copy tab_it.xvg to previous directory, assumes that all MCMC parameter sets use the same value of lambda
 #Not needed anymore
@@ -625,7 +626,7 @@ then
 Tempbox=$(<../NPT_eq/NPT_prod/Lbox_NPT_ave)  # This is the default for NPT
 fi
 # Pass the proper box size to the subscript in case it needs to restart calculations (it starts from insert molecules)
-"$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$Tempbox" nvt &
+bash "$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$Tempbox" nvt &
 
 pinoffset=$((pinoffset+nt_eq))
 

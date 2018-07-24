@@ -1,4 +1,5 @@
 #!/bin/bash
+source /usr/local/gromacs/bin/GMXRC
 # This is designed to restart an equilibration, either NVT or NPT, run.
 # Script to run a single gmx mdrun job and restart it if it fails
 # This script will move right into a restart without any user input
