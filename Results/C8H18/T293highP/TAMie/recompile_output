@@ -1,0 +1,177 @@
+#!/bin/bash
+
+job_date=$(date "+%Y_%m_%d_%H_%M_%S")
+
+Compound=C8H18
+Model=TAMie
+Conditions_type=T293highP    #Saturation         #"$Model"_Saturation   #Saturation # ie T293highP
+BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
+Temp=293  # Default temp, used if no temperature file is found in conditions path
+jlim=3  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
+jlow=2  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
+batches=3  # Number of batches to run
+NREPS=20 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
+NPT=NO  # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
+NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
+RDF=NO  # Whether to perform RDF calculations (YES or NO)
+#Set the number of molecules
+Nmol=400
+
+#Specify the path location for files
+scripts_path=~/Scripts
+conditions_path=~/"$Conditions_type"_Conditions  
+exp_data_path=~/TDE_REFPROP_values
+input_path=~/"$Compound"/Gromacs/Gromacs_input
+output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" 
+
+jobfile="$output_path"/"$Compound"_job_"$job_date" 
+
+### Read the box size, that depends on number of molecules
+if [ -f "$conditions_path"/"$Compound"_liquid_box_N"$Nmol" ]
+then
+
+while read line
+do 
+liquid_box+=("$line")
+done < "$conditions_path"/"$Compound"_liquid_box_N"$Nmol"
+
+else
+echo "Unable to read box from $conditions_path"/"$Compound"_liquid_box_N"$Nmol"
+exit 1
+fi
+
+### Loop through temperatures and densities		
+jlim=$((jlim - 1))
+batches=$((batches - 1))  # Limits for 0 indexed loops later
+
+for j in $(seq $jlow $jlim) # Number of conditions to run
+
+do
+
+### Record state points
+echo "$Nmol" "${liquid_box[j]}" "${temps[j]}" >> "$output_path"/"$Conditions_type"Settings.txt
+
+nRep=0
+
+NREP_low=0
+NREP_high=$((NREPS-1))
+
+####
+
+for iRep in $(seq 0 $batches) # Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
+
+do
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || error_report "Unable to change to NVT_vis" "$j" "$iMCMC" "post processing"  #start fresh for do cycle instead of multiple "cd .."'s
+
+# Don't need trajectories of eq and prod with viscosity
+# Modified .mdp so that trajectories are not produced, i.e. this is no longer needed
+#rm ../nvt_prod.trr
+#rm ../../nvt_eq.trr
+
+### Analyze trajectories for TCAF method
+# No longer using TCAF to obtain viscosities
+#echo 0 | gmx tcaf -f nvt_vis.trr -s nvt_vis.tpr > tcaf_out 2>> tcaf_out &
+
+Lbox="${liquid_box[j]}"
+Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
+echo "Using Lbox $Lbox and Vbox $Vbox in post processing MCMC $iMCMC j $j Rep $nRep"
+
+### Analyze Green-Kubo and Einstein
+
+echo "$Vbox" | gmx energy -f nvt_vis.edr -s nvt_vis.tpr -vis > vis_out 2>> vis_out &
+ls -la >> size_records.txt
+
+done #for iMCMC
+
+nit=0
+maxit=60000 #Don't want this too high, so it will finish eventually
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+while [ $ndone -lt $((NREP_high+1)) ] && [ $nit -lt $maxit ]
+do
+nit=$((nit+1))
+sleep 10s
+echo "Still post processing viscosity data"
+ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis/vis_out | grep -c "GROMACS reminds you")
+done
+
+sleep 10s  # Added in because large files take time to finalize/move/copy
+
+echo "Removing large viscosity output files"
+
+for iMCMC in $(seq $NREP_low $NREP_high)
+do
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT_vis || error_report "Unable to change to NVT_vis directory" "$j" "$iMCMC" "post processing"  #start fresh for do cycle instead of multiple "cd .."'s
+
+if [ -e visco.xvg ]
+then
+echo "Second attempt at size info gathering" > size_records.txt
+ls -la >> size_records.txt
+rm nvt_vis.trr
+rm energy.xvg
+rm nvt_vis.edr
+rm enecorr.xvg
+rm -f \#*
+else
+echo WARNING: No visco.xvg file for "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" >> "$output_path"/warnings_job_"$job_date"
+fi
+
+
+### Compile the pressure values; Due to different storage for the bond types, requires nested ifs
+if [ "$BondType" = harmonic ]
+then
+
+if [ "$Compound" = Ethane ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $1}' > press_log
+elif [ "$Compound" = C3H8 ] || [ "$Compound" = IC4H10 ] || [ "$Compound" = NEOC5H12 ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
+else
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $3}' > press_log
+fi
+
+else
+
+if [ "$Compound" = Ethane ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $5}' > press_log
+elif [ "$Compound" = C3H8 ] || [ "$Compound" = IC4H10 ] || [ "$Compound" = NEOC5H12 ]
+then
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $1}' > press_log
+else
+sed -e '1,/A V E R A G E S/d' nvt_vis.log | grep -m 1 -A1 'Pressure' | tail -n 1 | awk '{print $2}' > press_log
+fi
+fi
+
+cat "$output_path"/press_all_log press_log > "$output_path"/press_all_temp
+cp "$output_path"/press_all_temp "$output_path"/press_all_log
+rm "$output_path"/press_all_temp
+###
+
+done #for iMCMC
+
+cd "$output_path"/MCMC_"$iMCMC"/Saturated || error_report "Unable to change to Saturated directory" "$j" "$iMCMC" "post processing" 
+
+NREP_low=$((NREP_low+NREPS))
+NREP_high=$((NREP_high+NREPS))
+
+echo iRep = "$iRep"
+echo NREP_low = "$NREP_low"
+echo NREP_high = "$NREP_high"
+
+done # for iRep
+
+cd "$output_path" || error_report "Unable to change to $output_path directory" "$j" "$iMCMC" "post processing" 
+echo "In $PWD"
+
+###GreenKubo_analyze for all MCMC parameter sets
+python "$scripts_path"/GreenKubo_analyze.py --ilow 0 --ihigh $((NREP_low-1)) --nReps 1 --irho "$j" --sat
+
+done  # For each j
+
+exit 0

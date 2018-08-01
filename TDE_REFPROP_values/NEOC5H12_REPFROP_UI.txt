@@ -7,3 +7,9 @@ Estimated uncertainty in liquid viscosity <10% for pressures to 100 MPa
  based on comparisons with data of:
  Gonzalez, M. H. and Lee, A. L., J. Chem. Eng. Data, 13:66-69, 1968.
  Van Wijk, W.R., van der Veen, J.H., Brinkman, Seeder, W.A., "Effect of Temperature and Specific Volume on the Viscosity of Liquids," Physica (Amsterdam), 7, 45-6, 1940.
+
+Validity Range at Saturation:
+260-430 K
+
+Validity Range at T=293 K:
+0-30 MPa

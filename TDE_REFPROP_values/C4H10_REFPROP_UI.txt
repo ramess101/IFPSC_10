@@ -16,3 +16,9 @@ and to 6.0% in ranges without any primary data, but in which the
 equation of state is valid. A weakness of the reference equation of 
 state in the near-critical region prevents estimation of the 
 expanded uncertainty in this region."
+
+Validity Range at Saturation:
+135-425 K
+
+Validity Range at T=293 K:
+0-200 valid; 200-390 extrapolation

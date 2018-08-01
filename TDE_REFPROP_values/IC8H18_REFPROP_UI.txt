@@ -8,3 +8,9 @@ VISCOSITY
 
 The estimated uncertainty for the liquid phase at pressures to 100 MPa is 5%,
  10% for the gas phase.
+
+Validity Range at Saturation:
+170-540 K
+
+Validity Range at T=293 K:
+0-200 MPa

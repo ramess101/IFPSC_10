@@ -8,3 +8,10 @@ The viscosity in the limit of zero density has an expanded uncertainty (at 95% c
  The uncertainty is 1.5% for 290 <T <430 K at pressures to 30 MPa. For additional
  information on uncertainty consult the referenced manuscript.
 
+
+Validity Range at Saturation:
+95-305 K
+
+
+Validity Range at T=293 K:
+0-560 MPa
