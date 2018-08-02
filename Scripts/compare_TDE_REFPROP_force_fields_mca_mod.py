@@ -359,8 +359,6 @@ def main():
                 axarr[1,0].plot([0,end1],np.full(2,-ref_uncer[comp] * 100),'k--')
                 axarr[1,1].plot([0,end2],np.full(2,ref_uncer[comp] * 100),'k--')
                 axarr[1,1].plot([0,end2],np.full(2,-ref_uncer[comp] * 100),'k--')
-                axarr[1,0].text(left_text[comp][0],left_text[comp][1])
-                axarr[1,1].text(right_text[comp][0],right_text[comp][1])
 
             axarr[0,0].set_xlabel(r'$\rho$ (kg/m$^3$)')
             axarr[0,0].set_ylabel(r'log$_{10}$($\eta_{\rm liq}^{\rm comp}$/Pa-s)')
