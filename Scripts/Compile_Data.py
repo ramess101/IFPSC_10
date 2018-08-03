@@ -112,7 +112,7 @@ def Lbox_to_rho(Lbox,Nsim,Mw):
     rho = 1./Vol #[kg/m3]
     return rho 
 
-MW_list = {'C2H6':30.07,'C3H8':44.096,'C4H10':58.122,'C8H18':114.23,'C12H26':170.33,'IC4H10':58.122,'IC8H18':114.23,'IC5H12':72.149,'3MPentane':86.2,'23DMButane':86.1754,'NEOC5H12':72.149,'C16H34':226.41,'C22H46':310.6027,'IC6H14':86.175}
+MW_list = {'C2H6':30.07,'C3H8':44.096,'C4H10':58.122,'C8H18':114.23,'C12H26':170.33,'IC4H10':58.122,'IC8H18':114.23,'IC5H12':72.149,'3MPentane':86.2,'23DMButane':86.1754,'NEOC5H12':72.149,'C16H34':226.41,'C22H46':310.6027,'IC6H14':86.175,'3MPentane_val':86.2,'C4H10_val':58.122}
 
 # Read in the bootstrap and average values from a given filepath and rho
 # if they exist
@@ -313,7 +313,7 @@ def handle_T293_info(comp, number):
         P_hpmeans, P_hplows, P_hphighs, P_hprhos = load_forcefield_data(comp,"T293highP","Potoff",number)
         P_t_sim, P_dens_sim, P_press_sim, P_upress_sim, P_udens = load_sim_conditions_highP(comp,"Potoff",number)
         P_uncer = determine_uncertainties(P_hpmeans, P_hplows, P_hphighs)
-        len_P = len(P_hpmeans)
+        len_P = len(P_t_sim)
     except Exception, e:
         failed_P = True
         print("Unable to load T293 Potoff info for "+comp+": "+str(e))
@@ -321,7 +321,7 @@ def handle_T293_info(comp, number):
         TA_hpmeans, TA_hplows, TA_hphighs, TA_hprhos = load_forcefield_data(comp,"T293highP","TAMie",number)
         TA_t_sim, TA_dens_sim, TA_press_sim, TA_upress_sim, TA_udens = load_sim_conditions_highP(comp,"TAMie",number)
         TA_uncer = determine_uncertainties(TA_hpmeans, TA_hplows, TA_hphighs)
-        len_TA= len(TA_hpmeans)
+        len_TA= len(TA_t_sim)
     except Exception, e:
         failed_TA = True
         print("Unable to load T293 TAMie info for "+comp+": "+str(e))
@@ -329,7 +329,7 @@ def handle_T293_info(comp, number):
         Tr_hpmeans, Tr_hplows, Tr_hphighs, Tr_hprhos = load_forcefield_data(comp,"T293highP","TraPPE",number)
         Tr_t_sim, Tr_dens_sim, Tr_press_sim, Tr_upress_sim, Tr_udens = load_sim_conditions_highP(comp,"TraPPE",number)
         Tr_uncer = determine_uncertainties(Tr_hpmeans, Tr_hplows, Tr_hphighs)
-        len_Tr = len(Tr_hpmeans)
+        len_Tr = len(Tr_t_sim)
     except Exception, e:
         failed_Tr = True
         print("Unable to load T293 TraPPE info for "+comp+": "+str(e))
@@ -431,15 +431,15 @@ def handle_sat_info(comp, number):
         P_t_sat, P_dens_sat = load_sim_conditions_sat(comp,"Potoff",number)
         P_satmeans, P_satlows, P_sathighs, P_satrhos = load_forcefield_data(comp,"Saturation","Potoff",number)
         P_uncer = determine_uncertainties(P_satmeans,P_satlows,P_sathighs)
-        len_P = len(P_satmeans)
+        len_P = len(P_t_sat)
     except Exception, e:
         failed_P = True
-        print("Cannot load saturation potoff data for "+comp+": "+str(e))
+        print("Cannot load saturation Potoff data for "+comp+": "+str(e))
     try:
         TA_t_sat, TA_dens_sat = load_sim_conditions_sat(comp,"TAMie",number)
         TA_satmeans, TA_satlows, TA_sathighs, TA_satrhos = load_forcefield_data(comp,"Saturation","TAMie",number)
         TA_uncer = determine_uncertainties(TA_satmeans,TA_satlows,TA_sathighs)
-        len_TA = len(TA_satmeans)
+        len_TA = len(TA_t_sat)
     except Exception, e:
         failed_TA = True
         print("Cannot load saturation TAMie data for "+comp+": "+str(e))
@@ -447,7 +447,7 @@ def handle_sat_info(comp, number):
         Tr_t_sat, Tr_dens_sat = load_sim_conditions_sat(comp,"TraPPE",number)
         Tr_satmeans, Tr_satlows, Tr_sathighs, Tr_satrhos = load_forcefield_data(comp,"Saturation","TraPPE",number)
         Tr_uncer = determine_uncertainties(Tr_satmeans,Tr_satlows,Tr_sathighs)
-        len_Tr = len(Tr_satmeans)
+        len_Tr = len(Tr_t_sat)
     except Exception, e:
         failed_Tr = True
         print("Cannot load saturation TraPPE data for "+comp+": "+str(e))
@@ -483,28 +483,33 @@ def handle_sat_info(comp, number):
     sf.write("		Potoff	TAMie	TraPPE\n")
     sf.write("$T^{\\rm sat}$ [K]	$\\rho^{\\rm sat}_{\\rm liq}$ [Kg/m$^3$]	$\eta^{\\rm sat}_{\\rm liq}$ [Pa-s]	$\eta^{\\rm sat}_{\\rm liq}$  [Pa-s]	$\eta^{\\rm sat}_{\\rm liq}$ [Pa-s]\n")
     for rho in range(points):
-        sf.write(to_precision(P_t_sat[rho],3)+"	"+to_precision(P_dens_sat[rho],5)+"	")
-        if failed_P or rho >= len(P_satmeans):
-            sf.write("X	") 
+        if rho >= len(P_t_sat) or rho >= len(P_dens_sat):
+            print("Misalignment of density/temperature on saturation "+ comp +" rho "+str(rho)+". Check output.")
         else:
-            sf.write(sig_figs(P_satmeans[rho],P_uncer[rho])+"$_{"+to_precision(P_uncer[rho],2)+"}$	")
-        if failed_TA or rho >= len(TA_satmeans):  # We are out of room
-            sf.write("X	")
-        else:
-            sf.write(sig_figs(TA_satmeans[rho],TA_uncer[rho])+"$_{"+to_precision(TA_uncer[rho],2)+"}$	")
-        if failed_Tr or rho >= len(Tr_satmeans):  # We are out of room
-            sf.write("X\n")
-        else:
-            sf.write(sig_figs(Tr_satmeans[rho],Tr_uncer[rho])+"$_{"+to_precision(Tr_uncer[rho],2)+"}$\n")
+            sf.write(to_precision(P_t_sat[rho],3)+"	"+to_precision(P_dens_sat[rho],5)+"	")
+            if failed_P or rho >= len(P_satmeans):
+                sf.write("X	") 
+            else:
+                sf.write(sig_figs(P_satmeans[rho],P_uncer[rho])+"$_{"+to_precision(P_uncer[rho],2)+"}$	")
+            if failed_TA or rho >= len(TA_satmeans):  # We are out of room
+                sf.write("X	")
+            else:
+                sf.write(sig_figs(TA_satmeans[rho],TA_uncer[rho])+"$_{"+to_precision(TA_uncer[rho],2)+"}$	")
+            if failed_Tr or rho >= len(Tr_satmeans):  # We are out of room
+                sf.write("X\n")
+            else:
+                sf.write(sig_figs(Tr_satmeans[rho],Tr_uncer[rho])+"$_{"+to_precision(Tr_uncer[rho],2)+"}$\n")
 
 
 def main():
     
-    compound_list = ['C2H6','C3H8','C4H10','C8H18','C12H26','C16H34','C22H46','IC4H10','IC5H12','IC6H14','IC8H18','NEOC5H12','23DMButane','3MPentane']
-    compound_nums = {'C2H6':400,'C3H8':400,'C4H10':400,'C8H18':400,'C12H26':400,'C16H34':200,'C22H46':200,'IC4H10':400,'IC5H12':400,'IC6H14':400,'IC8H18':400,'NEOC5H12':400,'23DMButane':400,'3MPentane':400}
+    compound_list = ['C2H6','C3H8','C4H10','C8H18','C12H26','C16H34','C22H46','IC4H10','IC5H12','IC6H14','IC8H18','NEOC5H12','23DMButane','3MPentane','C4H10_val','3MPentane_val']
+    compound_nums = {'C2H6':400,'C3H8':400,'C4H10':400,'C8H18':400,'C12H26':400,'C16H34':200,'C22H46':200,'IC4H10':400,'IC5H12':400,'IC6H14':400,'IC8H18':400,'NEOC5H12':400,'23DMButane':400,'3MPentane':400,'C4H10_val':400,'3MPentane_val':400}
     model_list = ['Potoff','TAMie','TraPPE']
 
-    handle_sat_info("C22H46",200)
+    
+    handle_sat_info('C4H10_val',400)
+    handle_sat_info('3MPentane_val',400)
 
     for comp in compound_list:
         number = compound_nums[comp]
