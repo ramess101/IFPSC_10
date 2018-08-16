@@ -1,0 +1,16 @@
+Huber, M.L., "Models for the Viscosity, Thermal Conductivity, and Surface Tension
+ of Selected Pure Fluids as Implemented in REFPROP v10.0," NISTIR 8209, 2018.
+ doi: 10.6028/NIST.IR.8209
+
+VISCOSITY
+ The parameters for viscosity were based on the data of:
+ Briggs, S.W. and Comings, E.W., "Effect of Temperature on Liquid-Liquid Equilibrium Benzene-Acetone-Water System and Docosane-1,6-Diphenylhexane-Furfural System," Ind. Eng. Chem., 35(4):411-417, 1943. doi: 10.1021/ie50400a006
+ Queimada, A.J., Marrucho, I.M., Coutinho, J.A.P., and Stenby, E.H., "Viscosity and Liquid Density of Asymmetric n-Alkane Mixtures: Measurement and Modeling," Int. J. Thermophys., 26: 47-61, 2005.
+
+Estimated uncertainty in the liquid phase at saturation is 5%, rising to 10% at pressures to 10 MPa. Gas-phase uncertainty is 10%.
+
+Validity Range at Saturation:
+320-790 K
+ 
+Validity Range at T=293 K:
+NO.

@@ -5,7 +5,7 @@
 # which were using buggy code (ie wrong volume was passed to the gmx 
 # energy program)
 Compound=IC4H10
-Model=Potoff
+Model=TAMie
 Conditions_type=T293highP # ie T293highP
 BondType=LINCS  #harmonic (flexible) or LINCS (fixed)
 jlim=4  # number of condition sets to run
@@ -29,7 +29,7 @@ liquid_box+=("$line")
 done < "$conditions_path"/"$Compound"_liquid_box_N"$Nmol"
 
 # Begin actual correction work
-for j in $(seq 0 $jlim)
+for j in $(seq 4 4)
 do
 # For every MCMC that exists in this j
 for iMCMC in $(seq 0 $total)

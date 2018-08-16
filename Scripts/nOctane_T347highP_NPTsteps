@@ -195,6 +195,7 @@ sed -e '1,/A V E R A G E S/d' npt_prod.log | grep -m 1 -A1 'Box-X' | tail -n 1 |
 
 Lbox_NPT=$(<Lbox_NPT_ave)
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$Lbox_NPT" "$Lbox_NPT" "$Lbox_NPT" -o "$Compound"_box.gro > insertout 2>> insertout
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep" || exit  # move backwards
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "$Lbox_NPT" "$Lbox_NPT" "$Lbox_NPT" -o "$Compound"_box.gro > insertout 2>> insertout || echo "Warning: Unsuccessful box creation based on NPT data!"
 
 done #for iMCMC

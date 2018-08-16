@@ -1,4 +1,4 @@
-T(K)	eta(Pa*s)	Uncertainty(Pa*s)
+T(K)	eta(cP)	Uncertainty(cP)
 273.15	0.495	4.00E-03
 288.141	0.409	3.80E-03
 293.138	0.385	3.60E-03

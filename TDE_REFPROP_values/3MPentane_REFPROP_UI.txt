@@ -8,3 +8,10 @@ VISCOSITY
  J. Chem. Eng. Data, 62:1146-1152, 2017. doi: 10.1021/acs.jced.6b01024
 
 Estimated uncertainty for liquid from 273-343 K at pressures to 40 MPa is 2%, vapor phase is 10%. No vapor data available for comparison.
+
+
+Validity range at saturation:
+120-500 K
+
+Validity range at T=293:
+0-430 MPa

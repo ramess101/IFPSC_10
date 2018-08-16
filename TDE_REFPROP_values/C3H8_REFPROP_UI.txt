@@ -9,3 +9,10 @@ The viscosity at low pressures (< 0.2 MPa) has an expanded uncertainty
  as well as in the supercritical thermodynamic region T = 423 K at pressures
  up to 30 MPa. For additional information on uncertainty consult the referenced manuscript.
 
+
+Validity Range at Saturation:
+90-365 K
+
+
+Validity Range at T=293 K:
+0-1000 valid; 1000+ extrapolation

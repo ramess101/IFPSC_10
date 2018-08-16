@@ -5,3 +5,8 @@ Vogel, E., Kuechenmeister, C., and Bich, E.,
 The uncertainty in viscosity varies from 0.4% in the dilute gas between
  room temperature and 600 K, to 3.0% over the rest of the fluid surface.
 
+Validity Range at Saturation:
+115-390 K
+
+Validity Range at T=293 K:
+0-200 MPa; 200-400 MPa Extrapolation

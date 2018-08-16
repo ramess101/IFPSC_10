@@ -12,3 +12,9 @@ VISCOSITY
  Ma, P. S., Zhou, Q., Yang, C., Xia, S., Huagong Xuebao, 2004, 55, 6,1608-1613.
 
  The estimated uncertainty of the viscosity of the liquid phase at pressures below 100 MPa is 4%.
+
+Validity Range at Saturation:
+115-460 K
+
+Validity Range at T=293 K:
+0-100 MPa
