@@ -1,5 +1,4 @@
 #!/bin/bash
-source /usr/local/gromacs/bin/GMXRC
 ####
 #
 #This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
@@ -39,19 +38,19 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
-Compound=C4H10
-Model=TraPPE
-Conditions_type="$Model"_Saturation   #Saturation # ie T293highP
+Compound=224TMHexane
+Model=MCMC_lam16
+Conditions_type=T293highP    #Saturation         #"$Model"_Saturation   #Saturation # ie T293highP
 BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
-jlim=1  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
+jlim=13  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
 jlow=0  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
-batches=3  # Number of batches to run
-NREPS=18 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
-pin0=30  # Default pinoffset, used to tell taskset where to run jobs
-nt_eq=2  # Thread number during equilibration
-nt_vis=2  # This thread number will serve in production and viscosity runs
-NPT=NO  # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
+batches=1  # Number of batches to run
+NREPS=1 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
+pin0=19  # Default pinoffset, used to tell taskset where to run jobs
+nt_eq=1  # Thread number during equilibration
+nt_vis=1  # This thread number will serve in production and viscosity runs
+NPT=YES # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
 NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
 RDF=NO  # Whether to perform RDF calculations (YES or NO)
 #Set the number of molecules
@@ -59,12 +58,14 @@ Nmol=400
 
 ###### STEP SIZE INFORMATION #######
 # Runtiming control: override default runtimes=YES, otherwise use NO
-OVERRIDE_STEPS=NO
+OVERRIDE_STEPS=YES
 # If OVERRIDE_STEPS=YES, arrays must be of length j 
 # indicating how many equilibration and production steps,
 # respectively, to perform for each j
-equil_steps=(50000 500000 500000 500000 500000)
-prod_steps=(50000 1000000 1000000 1000000 1000000)
+#equil_steps=(500000 500000 500000 500000 500000)
+#prod_steps=(500000 500000 500000 500000 500000)
+equil_steps=(500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000)
+prod_steps=(500000 500000 500000 500000 500000 1000000 2000000 2000000 4000000 4000000 4000000 8000000 12000000)
 
 # The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
 # mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
@@ -297,7 +298,7 @@ lamC_sim=16.0
 
 echo "You are using short CH and C parameters"
 
-elif [ "$Compound" = 'IC6H14' ] || [ "$Compound" = 'IC8H18' ] || [ "$Compound" = '3MPentane' ]
+elif [ "$Compound" = 'IC6H14' ] || [ "$Compound" = 'IC8H18' ] || [ "$Compound" = '3MPentane' ] || [ "$Compound" = '224TMHexane' ]
 then
 
 #Long (5 or more C backbone)
@@ -358,10 +359,19 @@ then
 
 #AUA4
 
+if [ "$Compound" = 'C2H6' ]
+then
+
+bondlength_CH3=0.196668
+
+else
+
 bondlength_CH3=0.1751
 
+fi
+
 epsCH3_sim=120.15 # (K)
-sigCH3_sim=0.3607 # (nm)
+sigCH3_sim=0.36072 # (nm)
 lamCH3_sim=12.0
 
 epsCH2_sim=86.29 # (K)
@@ -382,6 +392,10 @@ lam_sim=12.0
 #delta_CH3=0.0216 nm
 #delta_CH2=0.0384 nm
 #delta_CH=0.0646 nm
+
+else
+
+bondlength_CH3=0.154 #(nm)
 
 fi
 
@@ -449,6 +463,25 @@ do
 
 cd "$output_path" || error_report "Unable to change to $output_path" "$j" "$iMCMC" "start up" 
 
+### Read in eps, sig, and lam from a file that contains the MCMC samples
+
+if [ "$Model" = 'MCMC_lam16' ]
+then
+
+epsCH3_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $1}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigCH3_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $2}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+lam_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $3}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+epsCH2_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $4}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigCH2_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $5}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+epsCH_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $7}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigCH_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $8}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+epsC_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $10}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigC_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $11}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+
+fi
+
+echo iMCMC = "$iMCMC"
+
 echo Run "$Conditions_type" Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim" epsCH = "$epsCH_sim" sigCH = "$sigCH_sim" lamCH = "$lam_sim" epsC = "$epsC_sim" sigC = "$sigC_sim" lamC = "$lam_sim"
 
 ####
@@ -457,7 +490,7 @@ mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || error_report "Unable to change to MCMC_$iMCMC" "$j" "$iMCMC" "start up"
 
 ###Create files with force field parameters
-bash "$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol"
+"$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol"
 
 ### Copy tab_it.xvg to previous directory, assumes that all MCMC parameter sets use the same value of lambda
 #Not needed anymore
@@ -485,7 +518,7 @@ cd    rho"$j" || error_report "Unable to change to directory rho$j" "$j" "$iMCMC
 mkdir -p Rep"$nRep"  
 cd    Rep"$nRep" || error_report "Unable to change to directory Rep$nRep" "$j" "$iMCMC" "start up"
 
-gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 500 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
+gmx insert-molecules -ci ../../../"$Compound".gro -nmol "$Nmol" -try 2000 -box "${liquid_box[j]}" "${liquid_box[j]}" "${liquid_box[j]}" -o "$Compound"_box.gro > insertout 2>> insertout
 
 if [ "$RDF" = "YES" ]  # Do RDF setup
 then
@@ -626,7 +659,7 @@ then
 Tempbox=$(<../NPT_eq/NPT_prod/Lbox_NPT_ave)  # This is the default for NPT
 fi
 # Pass the proper box size to the subscript in case it needs to restart calculations (it starts from insert molecules)
-bash "$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$Tempbox" nvt &
+"$scripts_path"/run_single.sh "$output_path"/MCMC_"$iMCMC"/tab_it.xvg "$nt_eq" cpu cpu nvt_eq "$pinoffset" "$j" "$nRep" "$output_path" "$NREP_low" "$NREP_high" "$Compound" "$Nmol" "$Tempbox" nvt &
 
 pinoffset=$((pinoffset+nt_eq))
 
@@ -682,6 +715,10 @@ ndone=$(cat "$output_path"/MCMC_*/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/N
 done
 
 ###Data analysis
+
+### Uncomment this to have jobs stop half way through. This allows the data analysis to use fewer cores if the output files are enormous.
+#bash "$scripts_path"/recompile_output
+#exit 0
 
 echo "Waiting for post processing viscosity data"
 
