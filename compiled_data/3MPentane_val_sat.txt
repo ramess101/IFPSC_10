@@ -1,0 +1,3 @@
+		Potoff	TAMie	TraPPE
+$T^{\rm sat}$ [K]	$\rho^{\rm sat}_{\rm liq}$ [Kg/m$^3$]	$\eta^{\rm sat}_{\rm liq}$ [Pa-s]	$\eta^{\rm sat}_{\rm liq}$  [Pa-s]	$\eta^{\rm sat}_{\rm liq}$ [Pa-s]
+330	624.50	0.1844$_{4.5e-3}$	X	0.1643$_{4.5e-3}$
