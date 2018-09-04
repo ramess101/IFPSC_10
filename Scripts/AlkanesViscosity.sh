@@ -1,4 +1,5 @@
 #!/bin/bash
+source /usr/local/gromacs/bin/GMXRC
 ####
 #
 #This code submits a set of CH3 and CH2 parameter sets (determined by Bayesian MCMC with a different code)
@@ -517,7 +518,7 @@ mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || error_report "Unable to change to MCMC_$iMCMC" "$j" "$iMCMC" "start up"
 
 ###Create files with force field parameters
-"$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol" "$MCMC_tors" "$iMCMC"  #"${CH2_CH2_tors_sim[@]}" "${CH2_CH_tors_sim[@]}" "${CH2_C_tors_sim[@]}" "${CH_CH_tors_sim[@]}"
+bash "$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol" "$MCMC_tors" "$iMCMC"  #"${CH2_CH2_tors_sim[@]}" "${CH2_CH_tors_sim[@]}" "${CH2_C_tors_sim[@]}" "${CH_CH_tors_sim[@]}"
 
 ### Copy tab_it.xvg to previous directory, assumes that all MCMC parameter sets use the same value of lambda
 #Not needed anymore
