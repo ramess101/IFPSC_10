@@ -39,22 +39,25 @@ trap "clean" SIGINT SIGTERM EXIT SIGQUIT  # Call cleanup when asked to
 job_date=$(date "+%Y_%m_%d_%H_%M_%S")
 
 Compound=224TMHexane
-Model=MCMC_lam16
+Model=Potoff
 Conditions_type=T293highP    #Saturation         #"$Model"_Saturation   #Saturation # ie T293highP
 BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
 jlim=13  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
-jlow=0  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
+jlow=12  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
 batches=1  # Number of batches to run
 NREPS=1 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
-pin0=19  # Default pinoffset, used to tell taskset where to run jobs
+pin0=0  # Default pinoffset, used to tell taskset where to run jobs
 nt_eq=1  # Thread number during equilibration
 nt_vis=1  # This thread number will serve in production and viscosity runs
 NPT=YES # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
+#echo "CHANGE THIS BACK BEFORE RUNNING MORE T293highP!!!"
 NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
 RDF=NO  # Whether to perform RDF calculations (YES or NO)
+MCMC_tors=NO # YES indicates model includes torsional uncertainties
 #Set the number of molecules
-Nmol=400
+Nmol=200
+
 
 ###### STEP SIZE INFORMATION #######
 # Runtiming control: override default runtimes=YES, otherwise use NO
@@ -65,7 +68,7 @@ OVERRIDE_STEPS=YES
 #equil_steps=(500000 500000 500000 500000 500000)
 #prod_steps=(500000 500000 500000 500000 500000)
 equil_steps=(500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000)
-prod_steps=(500000 500000 500000 500000 500000 1000000 2000000 2000000 4000000 4000000 4000000 8000000 12000000)
+prod_steps=(500000 500000 500000 500000 500000 1000000 2000000 4000000 4000000 8000000 8000000 12000000 24000000)
 
 # The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
 # mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
@@ -97,6 +100,17 @@ then
 output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType"_NEMD #Code assumes that a folder already exists with this directory and the eps_sig_lam_MCMC file in it
 else
 output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" 
+fi
+
+if [ "$MCMC_tors" = "YES" ]
+then
+output_path="$output_path"_MCMC_tors
+echo "Using MCMC derived torsional parameters"
+
+else
+
+echo "Using fixed literature values for torsional parameters"
+
 fi
 
 jobfile="$output_path"/"$Compound"_job_"$job_date" 
@@ -452,6 +466,9 @@ nRep=0
 NREP_low=0
 NREP_high=$((NREPS-1))
 
+#NREP_low=$((NREP_low+20+15))
+#NREP_high=$((NREP_high+20+15))
+
 ####
 
 for iRep in $(seq 0 $batches) # Number of batches to run (0 9), 10 batches with 20 replicates is 200 parameter sets
@@ -480,6 +497,16 @@ sigC_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $11}' < ~/MCMC_parameter_set
 
 fi
 
+#if [ "$MCMC_tors" = "YES" ]
+#then
+#
+#CH2_CH2_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $1}' < ~/MCMC_parameter_sets/MCMC_CH2_CH2_tors)
+#CH2_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $2}' < ~/MCMC_parameter_sets/MCMC_CH2_CH_tors)
+#CH2_C_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $3}' < ~/MCMC_parameter_sets/MCMC_CH2_C_tors)
+#CH_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $4}' < ~/MCMC_parameter_sets/MCMC_CH_CH_tors)
+#
+#fi
+
 echo iMCMC = "$iMCMC"
 
 echo Run "$Conditions_type" Viscosity for epsCH3 = "$epsCH3_sim" sigCH3 = "$sigCH3_sim" lamCH3 = "$lam_sim" epsCH2 = "$epsCH2_sim" sigCH2 = "$sigCH2_sim" lamCH2 = "$lam_sim" epsCH = "$epsCH_sim" sigCH = "$sigCH_sim" lamCH = "$lam_sim" epsC = "$epsC_sim" sigC = "$sigC_sim" lamC = "$lam_sim"
@@ -490,7 +517,7 @@ mkdir -p MCMC_"$iMCMC"
 cd MCMC_"$iMCMC" || error_report "Unable to change to MCMC_$iMCMC" "$j" "$iMCMC" "start up"
 
 ###Create files with force field parameters
-"$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol"
+"$scripts_path"/force_field_params "$Compound" "$input_path" "$scripts_path" "$lam_sim" "$epsCH3_sim" "$sigCH3_sim" "$epsCH2_sim" "$sigCH2_sim" "$epsCH_sim" "$sigCH_sim" "$epsC_sim" "$sigC_sim" "$bondlength_CH3" "$Nmol" "$MCMC_tors" "$iMCMC"  #"${CH2_CH2_tors_sim[@]}" "${CH2_CH_tors_sim[@]}" "${CH2_C_tors_sim[@]}" "${CH_CH_tors_sim[@]}"
 
 ### Copy tab_it.xvg to previous directory, assumes that all MCMC parameter sets use the same value of lambda
 #Not needed anymore

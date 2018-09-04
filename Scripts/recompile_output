@@ -26,8 +26,8 @@ BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
 jlim=13  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
 jlow=12  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
-batches=3  # Number of batches to run
-NREPS=10 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
+batches=50  # Number of batches to run
+NREPS=1 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
 NPT=YES  # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
 NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
 RDF=NO  # Whether to perform RDF calculations (YES or NO)
@@ -41,7 +41,8 @@ exp_data_path=~/TDE_REFPROP_values
 input_path=~/"$Compound"/Gromacs/Gromacs_input
 output_path=~/"$Compound"/Gromacs/"$Conditions_type"_Viscosity/"$Model"_N"$Nmol"_"$BondType" 
 
-jobfile="$output_path"/"$Compound"_job_"$job_date" 
+jobfile="$output_path"/"$Compound"_recompile_"$job_date" 
+cp "$scripts_path"/recompile_output "$jobfile" #Keep track of what jobs have been submitted
 
 ### Read the box size, that depends on number of molecules
 if [ -f "$conditions_path"/"$Compound"_liquid_box_N"$Nmol" ]
@@ -93,7 +94,15 @@ cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NVT_eq/NVT_prod/NVT
 # No longer using TCAF to obtain viscosities
 #echo 0 | gmx tcaf -f nvt_vis.trr -s nvt_vis.tpr > tcaf_out 2>> tcaf_out &
 
+if [ "$NPT" = "YES" ]  # If necessary, fetch the box size used due to NPT equilibration
+then
+Lbox=$(<../../../NPT_eq/NPT_prod/Lbox_NPT_ave)
+elif [ "$NPT" = "NO" ]
+then
 Lbox="${liquid_box[j]}"
+else
+echo "NPT not specified" | exit 0
+fi
 Vbox=$(echo $Lbox|awk '{print $1*$1*$1}')
 echo "Using Lbox $Lbox and Vbox $Vbox in post processing MCMC $iMCMC j $j Rep $nRep"
 
@@ -169,6 +178,15 @@ cat "$output_path"/press_all_log press_log > "$output_path"/press_all_temp
 cp "$output_path"/press_all_temp "$output_path"/press_all_log
 rm "$output_path"/press_all_temp
 ###
+
+if [ "$NPT" = "YES" ]  # Then we should fetch the box sizes...
+then
+### Compile the box sizes
+cd "$output_path"/MCMC_"$iMCMC"/Saturated/rho"$j"/Rep"$nRep"/NPT_eq/NPT_prod || error_report "Unable to change to NPT_prod directory" "$j" "$iMCMC" "post processing" 
+cat "$output_path"/Lbox_all Lbox_NPT_ave > "$output_path"/Lbox_all_temp
+cp "$output_path"/Lbox_all_temp "$output_path"/Lbox_all
+rm "$output_path"/Lbox_all_temp
+fi
 
 done #for iMCMC
 

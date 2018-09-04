@@ -38,8 +38,8 @@ except:
     pass
 
 tcut_default = 500
-tlow_default = 2
-guess_default = [2, 0.5, 0.5, 0.1]
+tlow_default = 3
+guess_default = [12, 1.5, 0.313, 0.679]
 
 class GreenKubo_MCMC():
     def __init__(self, ilow,ihigh,tcut=tcut_default):
@@ -824,16 +824,18 @@ class GreenKubo_SaturatedMCMC():
         self.GK_MCMC = self.gen_GK_MCMC()
         self.nTime = len(self.GK_MCMC[0].t_GK)    
         self.GK_MCMC_all, self.t_GK, self.sig_GK_MCMC = self.compile_GK_MCMC()
+        #self.GK_MCMC_all = self.GK_MCMC_all[:,self.GK_MCMC_all[-1,:]<1000]
         self.tcut = self.t_GK.max() #Use maximum time as initial tcut value
         self.w8_model, self.Aopt,self.bopt = self.w8_hat(fit=True)                
         self.GK_MCMC_avg = self.GK_time_avg()
         self.eta_inf, self.opt_fit = self.calc_eta_inf()
-        self.tcut = self.solve_tcut()
+        self.tcut = self.solve_tcut() #4000.
         self.eta_inf, self.opt_fit = self.calc_eta_inf()
         self.plot_w8_fit()     
         self.plot_eta_fit()     
 #        self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots, self.tcut_boots, self.b_boots = self.bootstrap_eta()
-        self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots = self.bootstrap_eta_alt()
+#        self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots = self.bootstrap_eta_alt()
+        self.eta_boots, self.eta_low, self.eta_high, self.opt_fit_boots = self.bootstrap_eta()
         
     def gen_fpath_all(self):
         #Read in the simulation specifications
@@ -997,10 +999,10 @@ class GreenKubo_SaturatedMCMC():
 #        except:
 #            guess = guess_default
         guess=guess_default
-#        print(guess)
+        print(guess)
         opt_fit = self.fit_eta(t_GK,GK_MCMC_avg,w8_model,guess=guess)
         eta_inf = self.calc_eta_estimate(opt_fit)
-#        print(opt_fit)
+        print(opt_fit,eta_inf)
 #        np.savetxt('GK_eta_inf',eta_inf,fmt='%0.7f')
         
         return eta_inf, opt_fit
@@ -1062,14 +1064,14 @@ class GreenKubo_SaturatedMCMC():
     
     def bootstrap_eta(self):
         
-        GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,bopt = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.bopt
+        GK_MCMC_avg,t_GK, w8_model,GK_MCMC_all,irho,bopt,nMCMC = self.GK_MCMC_avg,self.t_GK,self.w8_model, self.GK_MCMC_all, self.irho,self.bopt,self.nMCMC
         
         #Thin data to speed up fit
         GK_MCMC_all = GK_MCMC_all[::100]
         t_GK = t_GK[::100]
         w8_model = w8_model[::100]
 
-        nBoots = 1000
+        nBoots = 20000
         self.nBoots = nBoots
         eta_boots = np.zeros(nBoots)
         tcut_boots = np.zeros(nBoots)
@@ -1082,10 +1084,19 @@ class GreenKubo_SaturatedMCMC():
         
         for iBoots in range(nBoots):
             
+            if iBoots % 100 == 0 : print('iBoots = '+str(iBoots))
+
 #                w8_boots = np.random.random(self.nMCMC) #This has a random weight for the different runs, essentially it randomly samples which runs to include 
 #                w8_boots = np.random.randint(0,2,self.nMCMC) # The problem with this method is that you might have all 0's
-            w8_boots = np.random.randint(0,self.nMCMC,self.nMCMC) # This method tries to ensure that a large number of runs are included
-            while np.sum(w8_boots) == 0: w8_boots = np.random.randint(0,2,self.nMCMC)
+#            w8_boots = np.random.randint(0,self.nMCMC,self.nMCMC) # This method tries to ensure that a large number of runs are included
+#            while np.sum(w8_boots) == 0: w8_boots = np.random.randint(0,2,self.nMCMC)
+
+            w8_boots = np.zeros(nMCMC)
+
+            while np.sum(w8_boots) < nMCMC:
+
+                MCMC_random = np.random.randint(0,nMCMC)
+                w8_boots[MCMC_random] += 1
  
             eta_avg = np.sum(GK_MCMC_all*w8_boots,axis=1)/np.sum(w8_boots)
 #            eta_avg = GK_MCMC_avg # This approach does not do any random sampling of replicates
@@ -1109,11 +1120,16 @@ class GreenKubo_SaturatedMCMC():
         eta_low = eta_boots_sorted[ilow]
         eta_high = eta_boots_sorted[ihigh]
             
-        np.savetxt('GK_eta_boots',eta_boots,fmt='%0.7f')
-        np.savetxt('GK_tcut_boots',tcut_boots,fmt='%0.7f')
-        np.savetxt('GK_b_boots',b_boots,fmt='%0.7f')
+#        np.savetxt('GK_eta_boots',eta_boots,fmt='%0.7f')
+#        np.savetxt('GK_tcut_boots',tcut_boots,fmt='%0.7f')
+#        np.savetxt('GK_b_boots',b_boots,fmt='%0.7f')
             
-        return eta_boots, eta_low, eta_high, opt_fit_boots, tcut_boots, b_boots
+#        return eta_boots, eta_low, eta_high, opt_fit_boots, tcut_boots, b_boots
+
+        np.savetxt('GK_eta_boots_rho'+str(irho),eta_boots,fmt='%0.7f')
+
+        return eta_boots, eta_low, eta_high, opt_fit_boots
+
 
     def bootstrap_eta_alt(self,show_plots=False):
         
@@ -1125,8 +1141,8 @@ class GreenKubo_SaturatedMCMC():
         w8_model = w8_model[::100]
         
         nBootsMCMC = 100
-        nBootsReps = 200
-        
+        nBootsReps = self.nMCMC
+        print('nBootsReps = '+str(nBootsReps))
         nBoots = 200
         self.nBoots = nBoots
         eta_boots = np.zeros(nBoots*nBootsMCMC)
@@ -1150,9 +1166,16 @@ class GreenKubo_SaturatedMCMC():
                 
     #                w8_boots = np.random.random(self.nMCMC) #This has a random weight for the different runs, essentially it randomly samples which runs to include 
     #                w8_boots = np.random.randint(0,2,self.nMCMC) # The problem with this method is that you might have all 0's
-                w8_boots = np.random.randint(0,nBootsReps,nBootsReps) # This method tries to ensure that a large number of runs are included
-                while np.sum(w8_boots) == 0: w8_boots = np.random.randint(0,2,nBootsReps)
-     
+    #            w8_boots = np.random.randint(0,nBootsReps,nBootsReps) # This method tries to ensure that a large number of runs are included
+    #            while np.sum(w8_boots) == 0: w8_boots = np.random.randint(0,2,nBootsReps)
+
+                w8_boots = np.zeros(nBootsReps)
+
+                while np.sum(w8_boots) < nBootsReps:
+
+                    MCMC_random = np.random.randint(0,nBootsReps)
+                    w8_boots[MCMC_random] += 1
+    #            w8_boots = np.ones(nBootsReps)
                 eta_avg = np.sum(GK_MCMC_reps*w8_boots,axis=1)/np.sum(w8_boots)
     #            eta_avg = GK_MCMC_avg # This approach does not do any random sampling of replicates
                 

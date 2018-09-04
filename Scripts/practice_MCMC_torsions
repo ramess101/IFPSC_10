@@ -1,0 +1,27 @@
+Compound="$1"
+input_path="$2"
+scripts_path="$3"
+lam_sim="$4"
+epsCH3_sim="$5"
+sigCH3_sim="$6"
+epsCH2_sim="$7"
+sigCH2_sim="$8"
+epsCH_sim="$9"
+sigCH_sim="${10}"
+epsC_sim="${11}"
+sigC_sim="${12}"
+bondlength_CH3="${13}"
+Nmol="${14}"
+
+
+epsCH3_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $1}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigCH3_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $2}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+lam_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $3}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+epsCH2_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $4}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigCH2_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $5}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+epsCH_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $7}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigCH_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $8}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+epsC_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $10}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+sigC_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print $11}' < ~/MCMC_parameter_sets/eps_sig_lam16_MCMC_CH3_CH2_CH_C)
+
+sed -i -e s/some_C6_CH3/"$C6_CH3_sim"/ "$Compound".top

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 Compound="$1"
 input_path="$2"
 scripts_path="$3"
@@ -12,6 +14,8 @@ epsC_sim="${11}"
 sigC_sim="${12}"
 bondlength_CH3="${13}"
 Nmol="${14}"
+MCMC_tors="${15}"
+iMCMC="${16}"
 
 python "$scripts_path"/create_tab.py --lam "$lam_sim" --epsilon "$epsCH3_sim" --sigma "$sigCH3_sim"
 
@@ -114,7 +118,38 @@ Clam_CHC_sim=$(<Clam_it)
 echo "$epsCH3_sim" "$sigCH3_sim" "$lam_sim" "$epsCH2_sim" "$sigCH2_sim" "$lam_sim" "$epsCH_sim" "$sigCH_sim" "$lam_sim" "$epsC_sim" "$sigC_sim" "$lam_sim" "$epsCH3CH2_sim" "$sigCH3CH2_sim" "$lam_sim" "$epsCH3CH_sim" "$sigCH3CH_sim" "$lam_sim" "$epsCH3C_sim" "$sigCH3C_sim" "$lam_sim" "$epsCH2CH_sim" "$sigCH2CH_sim" "$lam_sim" "$epsCH2C_sim" "$sigCH2C_sim" "$lam_sim" "$epsCHC_sim" "$sigCHC_sim" "$lam_sim" > eps_sig_lam_ref
 echo "$bondlength_CH3" > bondlength_CH3
 
+if [ "$MCMC_tors" = "NO" ]
+then
+
 cp "$input_path"/"$Compound"_temp.top "$Compound".top 
+
+#CH2_CH2_tors_sim=(8.39736  16.78632   1.13393  -26.31760   0.00000   0.00000)
+#CH2_CH_tors_sim=(3.28629   7.44211   1.85995  -14.67569   0.00000   0.00000)
+#CH2_C_tors_sim=(3.83538  11.50613   0.00000  -15.34151   0.00000   0.00000)
+#CH_CH_tors_sim=(3.28629   7.44211   1.85995  -14.67569   0.00000   0.00000)
+
+elif [ "$MCMC_tors" = "YES" ]
+then
+
+cp "$input_path"/"$Compound"_temp_tors.top "$Compound".top 
+
+CH2_CH2_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH2_CH2_tors)
+CH2_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH2_CH_tors)
+CH2_C_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH2_C_tors)
+CH_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH_CH_tors)
+
+sed -i -e s/some_CH2_CH2_tors/"${CH2_CH2_tors_sim[@]}"/ "$Compound".top
+sed -i -e s/some_CH2_CH_tors/"${CH2_CH_tors_sim[@]}"/ "$Compound".top
+sed -i -e s/some_CH2_C_tors/"${CH2_C_tors_sim[@]}"/ "$Compound".top
+sed -i -e s/some_CH_CH_tors/"${CH_CH_tors_sim[@]}"/ "$Compound".top
+
+else
+
+echo "MCMC_tors must be given a value of YES or NO"
+exit 0 
+
+fi
+
 cp "$input_path"/"$Compound".gro "$Compound".gro 
 sed -i -e s/some_C6_CH3/"$C6_CH3_sim"/ "$Compound".top
 sed -i -e s/some_Clam_CH3/"$Clam_CH3_sim"/ "$Compound".top
@@ -138,5 +173,5 @@ sed -i -e s/some_Clam_combCH2C/"$Clam_CH2C_sim"/ "$Compound".top
 sed -i -e s/some_C6_combCHC/"$C6_CHC_sim"/ "$Compound".top
 sed -i -e s/some_Clam_combCHC/"$Clam_CHC_sim"/ "$Compound".top
 
-sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/ "$Compound".top
+sed -i -e s/some_bondlength_CH3/"$bondlength_CH3"/g "$Compound".top
 sed -i -e s/some_Nmol/"$Nmol"/ "$Compound".top
