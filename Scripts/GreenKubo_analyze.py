@@ -1071,14 +1071,14 @@ class GreenKubo_SaturatedMCMC():
         t_GK = t_GK[::100]
         w8_model = w8_model[::100]
 
-        nBoots = 20000
+        nBoots = 10000
         self.nBoots = nBoots
         eta_boots = np.zeros(nBoots)
-        tcut_boots = np.zeros(nBoots)
-        b_boots = np.zeros(nBoots)
+        #tcut_boots = np.zeros(nBoots)
+        #b_boots = np.zeros(nBoots)
         opt_fit_boots = []
                 
-        tcut_range = np.linspace(0.8*self.tcut,10*self.tcut)
+        tcut_range = np.linspace(0.8*self.tcut,1.2*self.tcut)
         b_low = 0.8*bopt
         b_high = 1.2*bopt
         
@@ -1105,12 +1105,12 @@ class GreenKubo_SaturatedMCMC():
             b_random = np.random.uniform(b_low,b_high)
             w8_model = t_GK**(-b_random)
         
-            opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut_random)
+            opt_fit = self.fit_eta(t_GK,eta_avg,w8_model,tcut_random,guess=self.opt_fit)
             eta_boots[iBoots] = self.calc_eta_estimate(opt_fit)
             
             opt_fit_boots.append(opt_fit)
-            tcut_boots[iBoots] = tcut_random
-            b_boots[iBoots] = b_random
+            #tcut_boots[iBoots] = tcut_random
+            #b_boots[iBoots] = b_random
         
         eta_boots_sorted = np.sort(np.array(eta_boots))
         
