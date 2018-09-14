@@ -121,7 +121,7 @@ plt.ylabel(r'$U^{\rm tors}$ (K)')
 plt.legend()
 plt.show()
 
-STD_CH2_CH2 = 0.15 * np.max(U_TraPPE_CH2_CH2) / 1.96
+STD_CH2_CH2 = -0.15 * np.max(U_TraPPE_CH2_CH2) / 1.96
 STD_CH2_CH = -0.15 * np.max(U_TraPPE_CH2_CH) / 1.96
 STD_CH2_C = -0.15 * np.max(U_TraPPE_CH2_C) / 1.96                           
                          
@@ -133,10 +133,10 @@ N_MCMC = 2000
 #MCMC_CH2_C = np.random.normal(0,STD_CH2_C,N_MCMC)   
 
 ### To generate a file with just shifted values, not sampled values
-#MCMC_CH2_CH2 = STD_CH2_CH2 * 1.96 * np.ones(N_MCMC)
-#MCMC_CH2_CH = STD_CH2_CH * 1.96 * np.ones(N_MCMC)
-#MCMC_CH2_C = STD_CH2_C * 1.96 * np.ones(N_MCMC) 
-#MCMC_CH_CH = MCMC_CH2_CH.copy()                    
+MCMC_CH2_CH2 = STD_CH2_CH2 * 1.96 * np.ones(N_MCMC)
+MCMC_CH2_CH = STD_CH2_CH * 1.96 * np.ones(N_MCMC)
+MCMC_CH2_C = STD_CH2_C * 1.96 * np.ones(N_MCMC) 
+MCMC_CH_CH = MCMC_CH2_CH.copy()                    
 
 ### To generate normal data
 #skew = .0
@@ -157,26 +157,39 @@ N_MCMC = 2000
 #upperU = 0.8
 
 ### To generate skewed data, with -15% and +40% as 95% confidence:
-skew = 1.25
-loc=0.
-upperU = 0.4
-#
-upper95=skewnorm.interval(0.95,skew,loc=loc)[1]
-lower95=skewnorm.interval(0.95,skew,loc=loc)[0]
+#skew = 1.25
+#loc=0.
+#upperU = 0.4
+##
 
-lowerU = upperU*lower95/upper95
-
-print('Upper percent error = '+str(upperU*100)+r'%, lower percent error = '+str(lowerU*100)+r'%.')
+try:
+    upper95=skewnorm.interval(0.95,skew,loc=loc)[1]
+    lower95=skewnorm.interval(0.95,skew,loc=loc)[0]
     
-STD_CH2_CH2 = upperU * np.max(U_TraPPE_CH2_CH2) / upper95
-STD_CH2_CH = upperU * np.max(U_TraPPE_CH2_CH) / upper95
-STD_CH2_C = upperU * np.max(U_TraPPE_CH2_C) / upper95
-STD_CH_CH = STD_CH2_CH
-                        
-MCMC_CH2_CH2 = skewnorm.rvs(skew,loc=loc*STD_CH2_CH2,scale=STD_CH2_CH2,size=N_MCMC)
-MCMC_CH2_CH = skewnorm.rvs(skew,loc=loc*STD_CH2_CH,scale=STD_CH2_CH,size=N_MCMC)
-MCMC_CH2_C = skewnorm.rvs(skew,loc=loc*STD_CH2_C,scale=STD_CH2_C,size=N_MCMC)   
-MCMC_CH_CH = skewnorm.rvs(skew,loc=loc*STD_CH_CH,scale=STD_CH_CH,size=N_MCMC)
+    lowerU = upperU*lower95/upper95
+    
+    print('Upper percent error = '+str(upperU*100)+r'%, lower percent error = '+str(lowerU*100)+r'%.')
+        
+    STD_CH2_CH2 = upperU * np.max(U_TraPPE_CH2_CH2) / upper95
+    STD_CH2_CH = upperU * np.max(U_TraPPE_CH2_CH) / upper95
+    STD_CH2_C = upperU * np.max(U_TraPPE_CH2_C) / upper95
+    STD_CH_CH = STD_CH2_CH
+                            
+    MCMC_CH2_CH2 = skewnorm.rvs(skew,loc=loc*STD_CH2_CH2,scale=STD_CH2_CH2,size=N_MCMC)
+    MCMC_CH2_CH = skewnorm.rvs(skew,loc=loc*STD_CH2_CH,scale=STD_CH2_CH,size=N_MCMC)
+    MCMC_CH2_C = skewnorm.rvs(skew,loc=loc*STD_CH2_C,scale=STD_CH2_C,size=N_MCMC)   
+    MCMC_CH_CH = skewnorm.rvs(skew,loc=loc*STD_CH_CH,scale=STD_CH_CH,size=N_MCMC)
+
+    print('skew = '+str(skew)+', loc = '+str(loc))
+    print(skewnorm.interval(0.95,skew,loc=loc))
+    print(skewnorm.mean(skew,loc=loc))
+    print(skewnorm.median(skew,loc=loc))
+    print(skewnorm.interval(0.95,skew,loc=loc)[1]/skewnorm.interval(0.95,skew,loc=loc)[0])
+
+except:
+    
+    print('skew, loc, and upperU not specified')
+    pass
 
 plt.hist(MCMC_CH2_CH2,bins=50,color='k',alpha=0.2)
 plt.hist(MCMC_CH2_CH,bins=50,color='r',alpha=0.2)
