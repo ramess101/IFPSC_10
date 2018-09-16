@@ -133,10 +133,10 @@ then
 
 cp "$input_path"/"$Compound"_temp_tors.top "$Compound".top 
 
-CH2_CH2_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH2_CH2_tors)
-CH2_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH2_CH_tors)
-CH2_C_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH2_C_tors)
-CH_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < ~/MCMC_parameter_sets/MCMC_CH_CH_tors)
+CH2_CH2_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < "$scripts_path"/../MCMC_parameter_sets/MCMC_CH2_CH2_tors)
+CH2_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < "$scripts_path"/../MCMC_parameter_sets/MCMC_CH2_CH_tors)
+CH2_C_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < "$scripts_path"/../MCMC_parameter_sets/MCMC_CH2_C_tors)
+CH_CH_tors_sim=$(awk -v i="$((iMCMC+1))" 'FNR == i {print}' < "$scripts_path"/../MCMC_parameter_sets/MCMC_CH_CH_tors)
 
 sed -i -e s/some_CH2_CH2_tors/"${CH2_CH2_tors_sim[@]}"/ "$Compound".top
 sed -i -e s/some_CH2_CH_tors/"${CH2_CH_tors_sim[@]}"/ "$Compound".top
