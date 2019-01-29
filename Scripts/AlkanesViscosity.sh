@@ -46,12 +46,12 @@ BondType=LINCS  #Harmonic (flexible) or LINCS (fixed)
 Temp=293  # Default temp, used if no temperature file is found in conditions path
 jlim=13  # Upper bound on j; condition sets to run; exclusive. Should usually be 5
 jlow=12  # Lower bound on j; inclusive. needed in special cases. Should usually be 0
-batches=1  # Number of batches to run
-NREPS=1 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
+batches=3  # Number of batches to run
+NREPS=20 #Run NREPS replicates in parallel/# in a batch (Overriden by NEMD=YES)
 pin0=0  # Default pinoffset, used to tell taskset where to run jobs
 nt_eq=1  # Thread number during equilibration
 nt_vis=1  # This thread number will serve in production and viscosity runs
-NPT=YES # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
+NPT=NO # YES indicates NPT runs should be carried out prior to NVT runs (YES or NO)
 #echo "CHANGE THIS BACK BEFORE RUNNING MORE T293highP!!!"
 NEMD=NO  # Calculate viscosity using the periodic perturbation method  (YES or NO)
 RDF=NO  # Whether to perform RDF calculations (YES or NO)
@@ -69,7 +69,7 @@ OVERRIDE_STEPS=YES
 #equil_steps=(500000 500000 500000 500000 500000)
 #prod_steps=(500000 500000 500000 500000 500000)
 equil_steps=(500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000 500000)
-prod_steps=(500000 500000 500000 500000 500000 1000000 2000000 4000000 4000000 8000000 8000000 12000000 24000000)
+prod_steps=(500000 500000 500000 500000 500000 1000000 2000000 4000000 4000000 8000000 8000000 12000000 48000000)
 
 # The mdp path is decided later based on the kind of run, but in the case that Lennard Jones
 # mdp's will be used, the lj_mdp_path will be the variable selected, otherwise t_mdp_path will be used.
