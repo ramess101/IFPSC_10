@@ -125,7 +125,7 @@ STD_CH2_CH2 = -0.15 * np.max(U_TraPPE_CH2_CH2) / 1.96
 STD_CH2_CH = -0.15 * np.max(U_TraPPE_CH2_CH) / 1.96
 STD_CH2_C = -0.15 * np.max(U_TraPPE_CH2_C) / 1.96                           
                          
-N_MCMC = 2000                        
+N_MCMC = 20                        
                          
 ### Original way of generating normal data
 #MCMC_CH2_CH2 = np.random.normal(0,STD_CH2_CH2,N_MCMC)
@@ -156,11 +156,11 @@ MCMC_CH_CH = MCMC_CH2_CH.copy()
 #loc=0.
 #upperU = 0.8
 
-### To generate skewed data, with -15% and +40% as 95% confidence:
-#skew = 1.25
-#loc=0.
-#upperU = 0.4
-##
+## To generate skewed data, with -15% and +40% as 95% confidence:
+skew = 1.25
+loc=0.
+upperU = 0.4
+#
 
 try:
     upper95=skewnorm.interval(0.95,skew,loc=loc)[1]
